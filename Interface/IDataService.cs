@@ -1,0 +1,46 @@
+﻿namespace ClearDataService.Interface;
+
+public interface IDataService
+{
+    Task<T?> Get<T>(int id) where T : class;
+    Task<T?> Get<T>(string id) where T : class;
+    Task<T?> Get<T>(Expression<Func<T, bool>> predicate) where T : class;
+    Task<List<T>> Get<T>(bool trackEntities = false) where T : class;
+    Task<List<T>> Find<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class;
+    IQueryable<T> GetAsQueryable<T>() where T : class;
+    IQueryable<T> FindAsQueryable<T>(Expression<Func<T, bool>> predicate) where T : class;
+
+
+    int Count<T>() where T : class;
+    int Count<T>(Expression<Func<T, bool>> predicate) where T : class;
+    Task<bool> Exists<T>(Expression<Func<T, bool>> predicate) where T : class;
+
+
+    Task<T> Save<T>(T entity) where T : class;
+    Task<int> Save<T>(IEnumerable<T> entities) where T : class;
+    Task<T> Update<T>(T entity) where T : class;
+    Task<int> Update<T>(IEnumerable<T> entities) where T : class;
+    Task<int> Delete<T>(T entity) where T : class;
+    Task<int> Delete<T>(IEnumerable<T> entities) where T : class;
+
+
+    //Task<List<T>> FromSql<T>(string sql) where T : class;
+    Task<int> ExecuteSql(string sql);
+    Task<int> ExecuteSql(string sql, params object[] parameters);
+
+
+    Task<List<T>> Query<T>(string sql);
+    Task<List<T>> Query<T>(string sql, object parameters);
+    Task<T?> QueryFirstOrDefault<T>(string sql);
+    Task<T?> QueryFirstOrDefault<T>(string sql, object parameters);
+    //Task<int> ExecuteQuery(string sql);
+
+
+    void AddForInsert<T>(T entity) where T : class;
+    void AddForInsert<T>(IEnumerable<T> entities) where T : class;
+    void AddForDelete<T>(T entity) where T : class;
+    void AddForDelete<T>(IEnumerable<T> entities) where T : class;
+    void AddForUpdate<T>(T entity) where T : class;
+    void AddForUpdate<T>(IEnumerable<T> entities) where T : class;
+    Task<int> SaveChanges();
+}
