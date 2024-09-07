@@ -4,12 +4,7 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 
-		<Authors>Godwin Ehichoya</Authors>
-		<Company>Clearwox Systems</Company>
-
-		<Version>1.0.1</Version>
-		<AssemblyVersion>1.0.1</AssemblyVersion>
-		<FileVersion>1.0.1</FileVersion>
+		<Version>1.0.3</Version>
 		<ProduceReferenceAssembly>True</ProduceReferenceAssembly>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
@@ -18,18 +13,35 @@
 			A simple data object service that combines the power of Ef 
 			with the flexibility of Dapper for managing SQL Server data.
 		</Description>
+		<PackageTags>data access, ef, dapper, sql server</PackageTags>
+
+		<Authors>Godwin Ehichoya</Authors>
+		<Company>Clearwox Systems</Company>
 		<Copyright>Copyright 2022</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 		
-		<PackageProjectUrl>https://github.com/Clearwox/ClearTools/</PackageProjectUrl>
-		<License>https://github.com/Clearwox/ClearTools/blob/master/LICENSE</License>
-		<RepositoryUrl>https://github.com/Clearwox/ClearTools/</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/ehgodson/ClearDataService</PackageProjectUrl>
+		<License>https://github.com/ehgodson/ClearDataService?tab=MIT-1-ov-file</License>
+		<RepositoryUrl>https://github.com/ehgodson/ClearDataService</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.2" />
-		<PackageReference Include="Dapper" Version="2.1.28" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />
+		<PackageReference Include="Dapper" Version="2.1.44" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="CHANGELOG.md">
+	    <PackagePath>\</PackagePath>
+	    <Pack>True</Pack>
+	  </None>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>

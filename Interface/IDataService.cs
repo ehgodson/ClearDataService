@@ -1,4 +1,6 @@
-﻿namespace ClearDataService.Interface;
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace ClearDataService.Interface;
 
 public interface IDataService
 {
@@ -7,6 +9,8 @@ public interface IDataService
     Task<T?> Get<T>(Expression<Func<T, bool>> predicate) where T : class;
     Task<List<T>> Get<T>(bool trackEntities = false) where T : class;
     Task<List<T>> Find<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class;
+
+    DbSet<T> GetEntity<T>() where T : class;
     IQueryable<T> GetAsQueryable<T>() where T : class;
     IQueryable<T> FindAsQueryable<T>(Expression<Func<T, bool>> predicate) where T : class;
 

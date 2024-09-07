@@ -12,6 +12,11 @@ public abstract class AbstractDataService(DbContext db) : IDataService
 
     #region Get Data
 
+    public DbSet<T> GetEntity<T>() where T : class
+    {
+        return db.Set<T>();
+    }
+
     public async Task<T?> Get<T>(int id) where T : class
     {
         return await db.Set<T>().FindAsync(id);
