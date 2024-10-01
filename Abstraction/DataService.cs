@@ -117,16 +117,16 @@ public abstract class AbstractDataService(DbContext db) : IDataService
 
     public void AddForInsert<T>(T entity) where T : class => db.Add(entity);
 
-    public void AddForInsert<T>(IEnumerable<T> entities) where T : class => db.AddRange(entities);
+    public void AddAllForInsert<T>(IEnumerable<T> entities) where T : class => db.AddRange(entities);
 
     public void AddForUpdate<T>(T entity) where T : class => db.Update(entity);
 
-    public void AddForUpdate<T>(IEnumerable<T> entities) where T : class =>
+    public void AddAllForUpdate<T>(IEnumerable<T> entities) where T : class =>
         entities.ToList().ForEach(entity => db.Update(entity));
 
     public void AddForDelete<T>(T entity) where T : class => db.Remove(entity);
 
-    public void AddForDelete<T>(IEnumerable<T> entities) where T : class =>
+    public void AddAllForDelete<T>(IEnumerable<T> entities) where T : class =>
         entities.ToList().ForEach(entity => db.Remove(entity));
 
     public async Task<int> SaveChanges() => await db.SaveChangesAsync();
