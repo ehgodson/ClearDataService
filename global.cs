@@ -1,2 +1,2 @@
 ﻿global using System.Linq.Expressions;
-global using ClearDataService.Interface;
+global using Microsoft.EntityFrameworkCore;

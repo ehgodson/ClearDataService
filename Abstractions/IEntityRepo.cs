@@ -1,13 +1,13 @@
-﻿namespace ClearDataService.Interface;
+﻿namespace ClearDataService.Abstractions;
 
-public interface IGenericService<T> where T : class
+public interface IEntityRepo<T> where T : class
 {
     Task<List<T>> Get();
-    IQueryable<T> GetAsQueryable();
-
     Task<T?> Get(int id);
     Task<T?> Get(string id);
     Task<T?> Get(Expression<Func<T, bool>> predicate);
+
+    IQueryable<T> GetAsQueryable();
 
     Task<List<T>> Find(Expression<Func<T, bool>> predicate);
 

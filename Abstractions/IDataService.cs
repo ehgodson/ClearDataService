@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-
-namespace ClearDataService.Interface;
+﻿namespace ClearDataService.Abstractions;
 
 public interface IDataService
 {

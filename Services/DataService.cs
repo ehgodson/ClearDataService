@@ -1,10 +1,11 @@
-﻿using Dapper;
-using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
+﻿using ClearDataService.Abstractions;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace ClearDataService.Abstraction;
+namespace ClearDataService.Services;
 
-public abstract class AbstractDataService(DbContext db) : IDataService
+public abstract class BaseDataService(DbContext db) : IDataService
 {
     private readonly string _connectionString = db.Database.GetConnectionString() ?? "";
 
@@ -153,13 +154,13 @@ public abstract class AbstractDataService(DbContext db) : IDataService
     public async Task<List<T>> Query<T>(string sql)
     {
         using SqlConnection conn = new(_connectionString);
-        return (await conn.QueryAsync<T>(sql)).ToList();
+        return [.. (await conn.QueryAsync<T>(sql))];
     }
 
     public async Task<List<T>> Query<T>(string sql, object parameters)
     {
         using SqlConnection conn = new(_connectionString);
-        return (await conn.QueryAsync<T>(sql, parameters)).ToList();
+        return [.. (await conn.QueryAsync<T>(sql, parameters))];
     }
 
     public async Task<T?> QueryFirstOrDefault<T>(string sql)
@@ -181,4 +182,16 @@ public abstract class AbstractDataService(DbContext db) : IDataService
     }
 
     #endregion
+}
+
+public class DataService(DbContext db) : BaseDataService(db)
+{ }
+
+public static class DataServiceMiddlewareExtension
+{
+    public static IServiceCollection AddDataService(this IServiceCollection services)
+    {
+        services.AddScoped<IDataService, DataService>();
+        return services;
+    }
 }

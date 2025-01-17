@@ -1,13 +1,15 @@
-﻿namespace ClearDataService.Abstraction;
+﻿using ClearDataService.Abstractions;
 
-public abstract class AbstractGenericService<T>(IDataService db) : IGenericService<T> where T : class
+namespace ClearDataService.Repo;
+
+public abstract class BaseEntityRepo<T>(IDataService db) : IEntityRepo<T> where T : class
 {
     public async Task<List<T>> Get() => await db.Get<T>();
-    public IQueryable<T> GetAsQueryable() => db.GetAsQueryable<T>();
-
     public async Task<T?> Get(int id) => await db.Get<T>(id);
     public async Task<T?> Get(string id) => await db.Get<T>(id);
     public async Task<T?> Get(Expression<Func<T, bool>> predicate) => await db.Get(predicate);
+
+    public IQueryable<T> GetAsQueryable() => db.GetAsQueryable<T>();
 
     public async Task<List<T>> Find(Expression<Func<T, bool>> predicate) => await db.Find(predicate);
 
