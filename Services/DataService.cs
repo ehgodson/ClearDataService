@@ -5,6 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ClearDataService.Services;
 
+/// <summary>
+/// This class is the base class for all data services in the project.
+/// Every method is async and returns a Task except ones returning, Entity, IQueryable or Count.
+/// </summary>
+/// <param name="db"></param>
 public abstract class BaseDataService(DbContext db) : IDataService
 {
     private readonly string _connectionString = db.Database.GetConnectionString() ?? "";
@@ -12,11 +17,6 @@ public abstract class BaseDataService(DbContext db) : IDataService
     #region ef methods
 
     #region Get Data
-
-    public DbSet<T> GetEntity<T>() where T : class
-    {
-        return db.Set<T>();
-    }
 
     public async Task<T?> Get<T>(int id) where T : class
     {
@@ -34,40 +34,56 @@ public abstract class BaseDataService(DbContext db) : IDataService
         return await entity.ToListAsync();
     }
 
+    public async Task<T?> Get<T>(Expression<Func<T, bool>> predicate, bool trackEntities = true) where T : class
+    {
+        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        return await entity.FirstOrDefaultAsync(predicate);
+    }
+
+    public async Task<T?> GetOne<T>(bool trackEntities = false) where T : class
+    {
+        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        return await entity.FirstOrDefaultAsync();
+    }
+
     public async Task<List<T>> Find<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class
     {
         var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
         return await entity.Where(predicate).ToListAsync();
     }
 
-    public IQueryable<T> GetAsQueryable<T>() where T : class
+
+    public DbSet<T> GetEntity<T>() where T : class
     {
-        return db.Set<T>().AsNoTracking();
+        return db.Set<T>();
     }
 
-    public IQueryable<T> FindAsQueryable<T>(Expression<Func<T, bool>> predicate) where T : class
+    public IQueryable<T> GetAsQueryable<T>(bool trackEntities = false) where T : class
     {
-        return db.Set<T>().AsNoTracking().Where(predicate);
+        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        return entity.AsQueryable();
     }
 
-    public async Task<T?> Get<T>(Expression<Func<T, bool>> predicate) where T : class
+    public IQueryable<T> FindAsQueryable<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class
     {
-        return await db.Set<T>().FirstOrDefaultAsync(predicate);
+        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        return entity.AsQueryable().Where(predicate);
     }
+
 
     public int Count<T>() where T : class
     {
-        return db.Set<T>().Count();
+        return db.Set<T>().AsNoTracking().Count();
     }
 
     public int Count<T>(Expression<Func<T, bool>> predicate) where T : class
     {
-        return db.Set<T>().Count(predicate);
+        return db.Set<T>().AsNoTracking().Count(predicate);
     }
 
     public async Task<bool> Exists<T>(Expression<Func<T, bool>> predicate) where T : class
     {
-        return await db.Set<T>().AnyAsync(predicate);
+        return await db.Set<T>().AsNoTracking().AnyAsync(predicate);
     }
 
     #endregion
@@ -189,6 +205,13 @@ public class DataService(DbContext db) : BaseDataService(db)
 
 public static class DataServiceMiddlewareExtension
 {
+    /// <summary>
+    /// This method adds the DataService to the service collection, which can be used to interact with the database.
+    /// This is useful when you do no need to extend BaseDataService further in your project.
+    /// If you have a custom DbContext, you can use the services.AddDbContext<DbContext, CustomDbContext> instead.
+    /// </summary>
+    /// <param name="services"></param>
+    /// <returns></returns>
     public static IServiceCollection AddDataService(this IServiceCollection services)
     {
         services.AddScoped<IDataService, DataService>();
