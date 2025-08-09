@@ -1,6 +1,6 @@
 ﻿namespace ClearDataService.Abstractions;
 
-public interface IDataService
+public interface ISqlDbContext
 {
     Task<T?> Get<T>(int id) where T : class;
     Task<T?> Get<T>(string id) where T : class;
@@ -24,6 +24,7 @@ public interface IDataService
     Task<T> Update<T>(T entity) where T : class;
     Task<int> Update<T>(IEnumerable<T> entities) where T : class;
     Task<int> Delete<T>(T entity) where T : class;
+    Task<int> Delete<T>(Expression<Func<T, bool>> predicate) where T : class;
     Task<int> Delete<T>(IEnumerable<T> entities) where T : class;
 
 

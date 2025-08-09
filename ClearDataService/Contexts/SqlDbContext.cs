@@ -1,18 +1,18 @@
 ﻿using ClearDataService.Abstractions;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace ClearDataService.Services;
+namespace ClearDataService.Contexts;
 
 /// <summary>
 /// This class is the base class for all data services in the project.
 /// Every method is async and returns a Task except ones returning, Entity, IQueryable or Count.
 /// </summary>
-/// <param name="db"></param>
-public abstract class BaseDataService(DbContext db) : IDataService
+/// <param name="_context"></param>
+public abstract class BaseSqlDbContext(DbContext _context) : ISqlDbContext
 {
-    private readonly string _connectionString = db.Database.GetConnectionString() ?? "";
+    private readonly string _connectionString = _context.Database.IsRelational()
+        ? _context.Database.GetConnectionString() ?? "" : "";
 
     #region ef methods
 
@@ -20,70 +20,70 @@ public abstract class BaseDataService(DbContext db) : IDataService
 
     public async Task<T?> Get<T>(int id) where T : class
     {
-        return await db.Set<T>().FindAsync(id);
+        return await _context.Set<T>().FindAsync(id);
     }
 
     public async Task<T?> Get<T>(string id) where T : class
     {
-        return await db.Set<T>().FindAsync(id);
+        return await _context.Set<T>().FindAsync(id);
     }
 
     public async Task<List<T>> Get<T>(bool trackEntities = false) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return await entity.ToListAsync();
     }
 
     public async Task<T?> Get<T>(Expression<Func<T, bool>> predicate, bool trackEntities = true) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return await entity.FirstOrDefaultAsync(predicate);
     }
 
     public async Task<T?> GetOne<T>(bool trackEntities = false) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return await entity.FirstOrDefaultAsync();
     }
 
     public async Task<List<T>> Find<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return await entity.Where(predicate).ToListAsync();
     }
 
 
     public DbSet<T> GetEntity<T>() where T : class
     {
-        return db.Set<T>();
+        return _context.Set<T>();
     }
 
     public IQueryable<T> GetAsQueryable<T>(bool trackEntities = false) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return entity.AsQueryable();
     }
 
     public IQueryable<T> FindAsQueryable<T>(Expression<Func<T, bool>> predicate, bool trackEntities = false) where T : class
     {
-        var entity = trackEntities ? db.Set<T>() : db.Set<T>().AsNoTracking();
+        var entity = trackEntities ? _context.Set<T>() : _context.Set<T>().AsNoTracking();
         return entity.AsQueryable().Where(predicate);
     }
 
 
     public int Count<T>() where T : class
     {
-        return db.Set<T>().AsNoTracking().Count();
+        return _context.Set<T>().AsNoTracking().Count();
     }
 
     public int Count<T>(Expression<Func<T, bool>> predicate) where T : class
     {
-        return db.Set<T>().AsNoTracking().Count(predicate);
+        return _context.Set<T>().AsNoTracking().Count(predicate);
     }
 
     public async Task<bool> Exists<T>(Expression<Func<T, bool>> predicate) where T : class
     {
-        return await db.Set<T>().AsNoTracking().AnyAsync(predicate);
+        return await _context.Set<T>().AsNoTracking().AnyAsync(predicate);
     }
 
     #endregion
@@ -92,74 +92,79 @@ public abstract class BaseDataService(DbContext db) : IDataService
 
     public async Task<T> Save<T>(T entity) where T : class
     {
-        var ob = db.Add(entity);
-        await db.SaveChangesAsync();
+        var ob = _context.Add(entity);
+        await _context.SaveChangesAsync();
         return ob.Entity;
     }
 
     public async Task<int> Save<T>(IEnumerable<T> entities) where T : class
     {
-        db.AddRange(entities);
-        return await db.SaveChangesAsync();
+        _context.AddRange(entities);
+        return await _context.SaveChangesAsync();
     }
 
     public async Task<T> Update<T>(T entity) where T : class
     {
-        var ob = db.Update(entity);
-        await db.SaveChangesAsync();
+        var ob = _context.Update(entity);
+        await _context.SaveChangesAsync();
         return ob.Entity;
     }
 
     public async Task<int> Update<T>(IEnumerable<T> entities) where T : class
     {
-        entities.ToList().ForEach(entity => db.Update(entity));
-        return await db.SaveChangesAsync();
+        _context.UpdateRange(entities);
+        return await _context.SaveChangesAsync();
     }
 
     public async Task<int> Delete<T>(T entity) where T : class
     {
-        db.Remove(entity);
-        return await db.SaveChangesAsync();
+        _context.Remove(entity);
+        return await _context.SaveChangesAsync();
+    }
+
+    public async Task<int> Delete<T>(Expression<Func<T, bool>> predicate) where T : class
+    {
+        return await _context.Set<T>().Where(predicate).ExecuteDeleteAsync();
     }
 
     public async Task<int> Delete<T>(IEnumerable<T> entities) where T : class
     {
-        entities.ToList().ForEach(entity => db.Remove(entity));
-        return await db.SaveChangesAsync();
+        _context.RemoveRange(entities);
+        return await _context.SaveChangesAsync();
     }
 
     #endregion
 
     #region Pre Update
 
-    public void AddForInsert<T>(T entity) where T : class => db.Add(entity);
+    public void AddForInsert<T>(T entity) where T : class => _context.Add(entity);
 
-    public void AddAllForInsert<T>(IEnumerable<T> entities) where T : class => db.AddRange(entities);
+    public void AddAllForInsert<T>(IEnumerable<T> entities) where T : class => _context.AddRange(entities);
 
-    public void AddForUpdate<T>(T entity) where T : class => db.Update(entity);
+    public void AddForUpdate<T>(T entity) where T : class => _context.Update(entity);
 
     public void AddAllForUpdate<T>(IEnumerable<T> entities) where T : class =>
-        entities.ToList().ForEach(entity => db.Update(entity));
+        entities.ToList().ForEach(entity => _context.Update(entity));
 
-    public void AddForDelete<T>(T entity) where T : class => db.Remove(entity);
+    public void AddForDelete<T>(T entity) where T : class => _context.Remove(entity);
 
     public void AddAllForDelete<T>(IEnumerable<T> entities) where T : class =>
-        entities.ToList().ForEach(entity => db.Remove(entity));
+        entities.ToList().ForEach(entity => _context.Remove(entity));
 
-    public async Task<int> SaveChanges() => await db.SaveChangesAsync();
+    public async Task<int> SaveChanges() => await _context.SaveChangesAsync();
 
     #endregion
 
     #region EF querying
 
     public async Task<List<T>> FromSql<T>(string sql) where T : class =>
-        await db.Set<T>().FromSqlRaw(sql).ToListAsync();
+        await _context.Set<T>().FromSqlRaw(sql).ToListAsync();
 
     public async Task<int> ExecuteSql(string sql) =>
-        await db.Database.ExecuteSqlRawAsync(sql);
+        await _context.Database.ExecuteSqlRawAsync(sql);
 
     public async Task<int> ExecuteSql(string sql, params object[] parameters) =>
-        await db.Database.ExecuteSqlRawAsync(sql, parameters);
+        await _context.Database.ExecuteSqlRawAsync(sql, parameters);
 
     #endregion
 
@@ -170,13 +175,13 @@ public abstract class BaseDataService(DbContext db) : IDataService
     public async Task<List<T>> Query<T>(string sql)
     {
         using SqlConnection conn = new(_connectionString);
-        return [.. (await conn.QueryAsync<T>(sql))];
+        return [.. await conn.QueryAsync<T>(sql)];
     }
 
     public async Task<List<T>> Query<T>(string sql, object parameters)
     {
         using SqlConnection conn = new(_connectionString);
-        return [.. (await conn.QueryAsync<T>(sql, parameters))];
+        return [.. await conn.QueryAsync<T>(sql, parameters)];
     }
 
     public async Task<T?> QueryFirstOrDefault<T>(string sql)
@@ -200,21 +205,5 @@ public abstract class BaseDataService(DbContext db) : IDataService
     #endregion
 }
 
-public class DataService(DbContext db) : BaseDataService(db)
+public class SqlDbContext(DbContext db) : BaseSqlDbContext(db)
 { }
-
-public static class DataServiceMiddlewareExtension
-{
-    /// <summary>
-    /// This method adds the DataService to the service collection, which can be used to interact with the database.
-    /// This is useful when you do no need to extend BaseDataService further in your project.
-    /// If you have a custom DbContext, you can use the services.AddDbContext<DbContext, CustomDbContext> instead.
-    /// </summary>
-    /// <param name="services"></param>
-    /// <returns></returns>
-    public static IServiceCollection AddDataService(this IServiceCollection services)
-    {
-        services.AddScoped<IDataService, DataService>();
-        return services;
-    }
-}
