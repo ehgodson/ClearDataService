@@ -1,4 +1,5 @@
 ﻿using ClearDataService.Entities.Cosmos;
+using ClearDataService.Models;
 
 namespace ClearDataService.Abstractions;
 
@@ -21,4 +22,6 @@ public interface ICosmosDbContext
     Task<CosmosDbDocument<T>> Save<T>(string containerName, T entity, string partitionKey) where T : ICosmosDbEntity;
     Task<CosmosDbDocument<T>> Upsert<T>(string containerName, T entity, string partitionKey) where T : ICosmosDbEntity;
     Task Delete<T>(string containerName, string id, string? partitionKey = null);
+    void AddToBatch<T>(string containerName, T item, string partitionKey) where T : ICosmosDbEntity;
+    Task<List<CosmosBatchResult>> SaveBatchAsync();
 }

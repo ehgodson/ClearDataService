@@ -32,24 +32,25 @@ ClearDataService is a comprehensive data access library for .NET 9 applications 
 - **Migration Support**: Automated database and container creation
 - **Audit Entities**: Built-in audit trail support for entities
 - **Flexible Querying**: LINQ support for both SQL and Cosmos DB
-- **Batch Operations**: Efficient bulk operations
+- **Batch Operations**: Efficient bulk operations for both SQL and Cosmos DB
+- **Cosmos DB Transactional Batches**: High-performance batch processing with automatic partition key grouping
 - **Configuration Management**: Multiple configuration options
 
 ## Installation
 
 ### Package Manager Console
 ```powershell
-Install-Package ClearDataService -Version 3.0.0-preview10
+Install-Package ClearDataService -Version 3.0.1
 ```
 
 ### .NET CLI
 ```bash
-dotnet add package ClearDataService --version 3.0.0-preview10
+dotnet add package ClearDataService --version 3.0.1
 ```
 
 ### PackageReference
 ```xml
-<PackageReference Include="ClearDataService" Version="3.0.0-preview10" />
+<PackageReference Include="ClearDataService" Version="3.0.1" />
 ```
 
 ## Quick Start
@@ -251,6 +252,10 @@ Task<CosmosDbDocument<T>> Upsert<T>(string containerName, T entity, string parti
 
 // Delete operations
 Task Delete<T>(string containerName, string id, string? partitionKey = null);
+
+// Batch operations (New in v3.0.1)
+void AddToBatch<T>(string containerName, T item, string partitionKey) where T : ICosmosDbEntity;
+Task<List<CosmosBatchResult>> SaveBatchAsync();
 ```
 
 ### Cosmos DB Document Structure
@@ -573,6 +578,42 @@ public class CosmosUserService
     {
         return await _context.GetList<CosmosUser>(ContainerName, u => u.IsActive, partitionKey);
     }
+
+    // Batch operations (New in v3.0.1)
+    public async Task<List<CosmosBatchResult>> CreateUsersBatchAsync(List<CosmosUser> users, string partitionKey)
+    {
+        // Queue users for batch processing
+        foreach (var user in users)
+        {
+            _context.AddToBatch(ContainerName, user, partitionKey);
+        }
+        
+        // Execute all batched operations
+        return await _context.SaveBatchAsync();
+    }
+
+    public async Task<List<CosmosBatchResult>> ProcessMixedBatchAsync(
+        List<CosmosUser> usersToCreate, 
+        string partitionKey)
+    {
+        // Add multiple items to batch
+        foreach (var user in usersToCreate)
+        {
+            _context.AddToBatch(ContainerName, user, partitionKey);
+        }
+        
+        // Execute batch and get results
+        var results = await _context.SaveBatchAsync();
+        
+        // Process results
+        var successCount = results.Count(r => r.Successful);
+        var failureCount = results.Count(r => !r.Successful);
+        
+        _logger.LogInformation("Batch completed: {SuccessCount} succeeded, {FailureCount} failed", 
+            successCount, failureCount);
+            
+        return results;
+    }
 }
 ```
 
@@ -688,6 +729,7 @@ var queryableUsers = _context.GetAsQueryable<User>(trackEntities: false);
 
 ### Batch Operations
 
+#### SQL Database Batch Operations
 ```csharp
 public async Task ProcessUserBatchAsync(List<User> usersToInsert, List<User> usersToUpdate, List<User> usersToDelete)
 {
@@ -700,6 +742,105 @@ public async Task ProcessUserBatchAsync(List<User> usersToInsert, List<User> use
     var affectedRows = await _context.SaveChanges();
     
     _logger.LogInformation("Processed {Count} entities", affectedRows);
+}
+```
+
+#### Cosmos DB Batch Operations (New in v3.0.1)
+```csharp
+public async Task ProcessCosmosBatchAsync(List<CosmosUser> users, string partitionKey)
+{
+    try
+    {
+        // Queue entities for batch processing
+        foreach (var user in users)
+        {
+            _context.AddToBatch("Users", user, partitionKey);
+        }
+        
+        // Execute batch operations
+        var results = await _context.SaveBatchAsync();
+        
+        // Process results
+        foreach (var result in results)
+        {
+            if (result.Successful)
+            {
+                _logger.LogInformation("Batch operation succeeded: {Result}", result);
+            }
+            else
+            {
+                _logger.LogError("Batch operation failed: {Result}", result);
+            }
+        }
+        
+        // Summary
+        var successCount = results.Count(r => r.Successful);
+        var totalCount = results.Count;
+        
+        _logger.LogInformation("Batch completed: {SuccessCount}/{TotalCount} operations succeeded", 
+            successCount, totalCount);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error processing Cosmos DB batch operation");
+        throw;
+    }
+}
+
+// Mixed container batch processing
+public async Task ProcessMultiContainerBatchAsync()
+{
+    // Add items to different containers
+    _context.AddToBatch("Users", user1, "partition1");
+    _context.AddToBatch("Orders", order1, "customer1");
+    _context.AddToBatch("Products", product1, "category1");
+    
+    // All operations are executed together, grouped by container and partition
+    var results = await _context.SaveBatchAsync();
+    
+    // Results are returned for all containers
+    var userResults = results.Where(r => r.ContainerName == "Users");
+    var orderResults = results.Where(r => r.ContainerName == "Orders");
+    var productResults = results.Where(r => r.ContainerName == "Products");
+}
+```
+
+#### Batch Operation Best Practices
+```csharp
+public class CosmosDbBatchService
+{
+    private readonly ICosmosDbContext _context;
+    private const int MaxBatchSize = 100; // Cosmos DB transactional batch limit
+
+    public async Task<List<CosmosBatchResult>> ProcessLargeBatchAsync<T>(
+        string containerName, 
+        List<T> entities, 
+        string partitionKey) where T : ICosmosDbEntity
+    {
+        var allResults = new List<CosmosBatchResult>();
+        
+        // Process in chunks to respect Cosmos DB batch limits
+        for (int i = 0; i < entities.Count; i += MaxBatchSize)
+        {
+            var chunk = entities.Skip(i).Take(MaxBatchSize).ToList();
+            
+            foreach (var entity in chunk)
+            {
+                _context.AddToBatch(containerName, entity, partitionKey);
+            }
+            
+            var batchResults = await _context.SaveBatchAsync();
+            allResults.AddRange(batchResults);
+            
+            // Optional: Add delay between batches to avoid throttling
+            if (i + MaxBatchSize < entities.Count)
+            {
+                await Task.Delay(100); // 100ms delay
+            }
+        }
+        
+        return allResults;
+    }
 }
 ```
 
@@ -746,9 +887,10 @@ var activeUsers = _context.GetAsQueryable<User>(trackEntities: false)
 
 1. **Partition Key Design**: Choose partition keys that distribute data evenly
 2. **Query Efficiency**: Include partition key in queries when possible
-3. **Batch Size**: Keep batch operations reasonable in size
-4. **Error Handling**: Handle throttling and temporary failures
-5. **Cost Optimization**: Use appropriate consistency levels
+3. **Batch Operations**: Use transactional batches for multiple operations within the same partition
+4. **Batch Size Limits**: Respect Cosmos DB's 100-operation limit per transactional batch
+5. **Error Handling**: Handle throttling and temporary failures, especially for batch operations
+6. **Cost Optimization**: Use appropriate consistency levels and batch operations to reduce RU consumption
 
 ```csharp
 // Good: Include partition key in queries
@@ -762,6 +904,37 @@ public async Task<List<CosmosUser>> GetUsersByCompanyAsync(string companyId)
 {
     // companyId is the partition key
     return await _context.GetList<CosmosUser>("Users", companyId);
+}
+
+// Good: Use batch operations for multiple entities in same partition
+public async Task<List<CosmosBatchResult>> CreateCompanyUsersAsync(string companyId, List<CosmosUser> users)
+{
+    foreach (var user in users)
+    {
+        _context.AddToBatch("Users", user, companyId);
+    }
+    return await _context.SaveBatchAsync();
+}
+
+// Good: Handle batch results properly
+public async Task ProcessBatchWithErrorHandlingAsync(List<CosmosUser> users, string partitionKey)
+{
+    foreach (var user in users)
+    {
+        _context.AddToBatch("Users", user, partitionKey);
+    }
+    
+    var results = await _context.SaveBatchAsync();
+    var failures = results.Where(r => !r.Successful).ToList();
+    
+    if (failures.Any())
+    {
+        _logger.LogWarning("Batch operation had {FailureCount} failures", failures.Count);
+        foreach (var failure in failures)
+        {
+            _logger.LogError("Batch failure: {Error}", failure.Message);
+        }
+    }
 }
 ```
 

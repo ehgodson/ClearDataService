@@ -23,7 +23,8 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 ### ?? Entity Management
 - **Base Entity Classes**: Pre-built entities with audit trail support
 - **Flexible Querying**: LINQ support for both SQL and Cosmos DB
-- **Batch Operations**: Efficient bulk operations for performance
+- **Batch Operations**: Efficient bulk operations for both SQL and Cosmos DB
+- **Cosmos DB Batch Processing**: Transactional batch operations with automatic partition key grouping
 - **Soft Delete**: Built-in soft delete functionality
 - **Audit Trails**: Automatic creation and modification tracking
 
@@ -39,7 +40,7 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 ### Installation
 
 ```bash
-dotnet add package ClearDataService --version 3.0.0
+dotnet add package ClearDataService --version 3.0.1
 ```
 
 ### SQL Database Setup
@@ -128,6 +129,16 @@ public class OrderRepository : BaseCosmosDbRepo<Order>
 
     public async Task<Order> CreateOrderAsync(Order order, string customerId)
         => await Create(order, customerId);
+
+    // New: Batch operations for high-performance bulk operations
+    public async Task<List<CosmosBatchResult>> CreateOrdersBatchAsync(List<Order> orders, string customerId)
+    {
+        foreach (var order in orders)
+        {
+            Context.AddToBatch("Orders", order, customerId);
+        }
+        return await Context.SaveBatchAsync();
+    }
 }
 ```
 
@@ -162,6 +173,27 @@ public class ECommerceService
         };
 
         return await _orderRepository.CreateOrderAsync(order, customerId);
+    }
+
+    // New: Process multiple orders efficiently using batch operations
+    public async Task<List<CosmosBatchResult>> ProcessMultipleOrdersAsync(
+        List<(string customerId, List<OrderItem> items)> orderRequests)
+    {
+        foreach (var (customerId, items) in orderRequests)
+        {
+            var order = new Order
+            {
+                Id = Guid.NewGuid().ToString(),
+                CustomerId = customerId,
+                Items = items,
+                TotalAmount = items.Sum(i => i.TotalPrice),
+                Status = OrderStatus.Pending
+            };
+            
+            _orderRepository.Context.AddToBatch("Orders", order, customerId);
+        }
+        
+        return await _orderRepository.Context.SaveBatchAsync();
     }
 }
 ```
