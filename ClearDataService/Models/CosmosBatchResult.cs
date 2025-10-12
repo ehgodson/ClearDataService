@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace ClearDataService.Models;
+namespace Clear.DataService.Models;
 
 public record CosmosBatchResult
 {

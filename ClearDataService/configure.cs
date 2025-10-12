@@ -1,10 +1,10 @@
-using ClearDataService.Abstractions;
-using ClearDataService.Contexts;
-using ClearDataService.Exceptions;
-using ClearDataService.Factory;
-using ClearDataService.Migrators;
-using ClearDataService.Models;
-using ClearDataService.Utils;
+using Clear.DataService.Abstractions;
+using Clear.DataService.Contexts;
+using Clear.DataService.Exceptions;
+using Clear.DataService.Factory;
+using Clear.DataService.Migrators;
+using Clear.DataService.Models;
+using Clear.DataService.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using System.Reflection;
 
-namespace ClearDataService;
+namespace Clear.DataService;
 
 public static class ServiceExtensions
 {

@@ -1,6 +1,6 @@
-﻿using ClearDataService.Entities.Cosmos;
+﻿using Clear.DataService.Entities.Cosmos;
 
-namespace ClearDataService.Abstractions;
+namespace Clear.DataService.Abstractions;
 
 public interface ICosmosDbRepo<T> where T : ICosmosDbEntity
 {

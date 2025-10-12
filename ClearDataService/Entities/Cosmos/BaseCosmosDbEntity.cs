@@ -1,7 +1,7 @@
-﻿using ClearDataService.Abstractions;
+﻿using Clear.DataService.Abstractions;
 using System.ComponentModel.DataAnnotations;
 
-namespace ClearDataService.Entities.Cosmos;
+namespace Clear.DataService.Entities.Cosmos;
 
 public abstract class BaseCosmosDbEntity : ICosmosDbEntity
 {

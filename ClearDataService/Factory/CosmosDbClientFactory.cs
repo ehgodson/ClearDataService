@@ -1,7 +1,7 @@
-using ClearDataService.Utils;
+using Clear.DataService.Utils;
 using Microsoft.Azure.Cosmos;
 
-namespace ClearDataService.Factory;
+namespace Clear.DataService.Factory;
 
 public static class CosmosDbClientFactory //: ICosmosDbClientFactory
 {

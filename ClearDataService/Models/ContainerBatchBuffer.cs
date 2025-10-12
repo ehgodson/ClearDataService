@@ -1,6 +1,6 @@
 using Microsoft.Azure.Cosmos;
 
-namespace ClearDataService.Models;
+namespace Clear.DataService.Models;
 
 public sealed record ContainerBatchBuffer(Container Container, Dictionary<string, List<object>> PartitionedItems)
 {

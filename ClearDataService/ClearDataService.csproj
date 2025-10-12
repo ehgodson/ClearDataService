@@ -22,9 +22,9 @@
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		
-		<PackageProjectUrl>https://github.com/ehgodson/ClearDataService</PackageProjectUrl>
-		<License>https://github.com/ehgodson/ClearDataService?tab=MIT-1-ov-file</License>
-		<RepositoryUrl>https://github.com/ehgodson/ClearDataService</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/ehgodson/Clear.DataService</PackageProjectUrl>
+		<License>https://github.com/ehgodson/Clear.DataService?tab=MIT-1-ov-file</License>
+		<RepositoryUrl>https://github.com/ehgodson/Clear.DataService</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -47,6 +47,10 @@
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>
 	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Extensions\" />
 	</ItemGroup>
 
 </Project>

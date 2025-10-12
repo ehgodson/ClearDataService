@@ -1,4 +1,4 @@
-namespace ClearDataService.Utils;
+namespace Clear.DataService.Utils;
 
 public interface ICosmosDbSettings
 {

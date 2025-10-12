@@ -1,4 +1,4 @@
-﻿namespace ClearDataService.Abstractions;
+﻿namespace Clear.DataService.Abstractions;
 
 public interface ICosmosDbEntity : IBaseEntity
 {

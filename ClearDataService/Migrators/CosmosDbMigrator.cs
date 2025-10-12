@@ -1,9 +1,9 @@
-using ClearDataService.Exceptions;
-using ClearDataService.Models;
-using ClearDataService.Utils;
+using Clear.DataService.Exceptions;
+using Clear.DataService.Models;
+using Clear.DataService.Utils;
 using Microsoft.Azure.Cosmos;
 
-namespace ClearDataService.Migrators;
+namespace Clear.DataService.Migrators;
 
 public interface ICosmosDbMigrator
 {

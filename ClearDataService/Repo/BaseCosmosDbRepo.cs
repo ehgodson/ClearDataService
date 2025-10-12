@@ -1,7 +1,7 @@
-using ClearDataService.Abstractions;
-using ClearDataService.Entities.Cosmos;
+using Clear.DataService.Abstractions;
+using Clear.DataService.Entities.Cosmos;
 
-namespace ClearDataService.Repo;
+namespace Clear.DataService.Repo;
 
 public abstract class BaseCosmosDbRepo<T> : ICosmosDbRepo<T> where T : ICosmosDbEntity
 {

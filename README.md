@@ -1,10 +1,10 @@
-# ClearDataService
+# Clear.DataService
 
-[![NuGet version](https://badge.fury.io/nu/ClearDataService.svg)](https://badge.fury.io/nu/ClearDataService)
+[![NuGet version](https://badge.fury.io/nu/Clear.DataService.svg)](https://badge.fury.io/nu/Clear.DataService)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/9.0)
 
-A comprehensive data access library for .NET 9 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. ClearDataService provides a unified approach to data operations across both relational and NoSQL databases.
+A comprehensive data access library for .NET 9 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. Clear.DataService provides a unified approach to data operations across both relational and NoSQL databases.
 
 ## ? Features
 
@@ -40,20 +40,20 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 ### Installation
 
 ```bash
-dotnet add package ClearDataService --version 3.0.1
+dotnet add package Clear.DataService --version 3.0.1
 ```
 
 ### SQL Database Setup
 
 ```csharp
 // Program.cs
-using ClearDataService;
+using Clear.DataService;
 
 // Register Entity Framework DbContext
 builder.Services.AddDbContext<MyDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Register ClearDataService SQL context
+// Register Clear.DataService SQL context
 builder.Services.AddSqlDbContext();
 
 // Optional: Auto-migrate database
@@ -232,9 +232,9 @@ builder.Services.AddCosmosDbContext(configuration, "CosmosDb");
 ## ?? Documentation
 
 For comprehensive documentation, examples, and advanced usage patterns, see:
-- [Complete Documentation](./ClearDataService-Documentation.md) - Detailed guide covering all features
-- [Changelog](./ClearDataService/CHANGELOG.md) - Version history and changes
-- [Examples Repository](https://github.com/ehgodson/ClearDataService/tree/main/examples) - Sample applications
+- [Complete Documentation](./Clear.DataService-Documentation.md) - Detailed guide covering all features
+- [Changelog](./Clear.DataService/CHANGELOG.md) - Version history and changes
+- [Examples Repository](https://github.com/ehgodson/Clear.DataService/tree/main/examples) - Sample applications
 
 ## ??? Architecture
 
@@ -284,8 +284,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## ?? Support
 
 - ?? Email: [support@clearwox.com](mailto:support@clearwox.com)
-- ?? Issues: [GitHub Issues](https://github.com/ehgodson/ClearDataService/issues)
-- ?? Discussions: [GitHub Discussions](https://github.com/ehgodson/ClearDataService/discussions)
+- ?? Issues: [GitHub Issues](https://github.com/ehgodson/Clear.DataService/issues)
+- ?? Discussions: [GitHub Discussions](https://github.com/ehgodson/Clear.DataService/discussions)
 
 ---
 

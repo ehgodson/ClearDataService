@@ -1,4 +1,4 @@
-﻿namespace ClearDataService.Models;
+﻿namespace Clear.DataService.Models;
 
 public record CosmosDbContainerInfo(
     string Name,

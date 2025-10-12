@@ -1,4 +1,4 @@
-namespace ClearDataService.Migrators;
+namespace Clear.DataService.Migrators;
 
 public interface ISqlDbMigrator
 {

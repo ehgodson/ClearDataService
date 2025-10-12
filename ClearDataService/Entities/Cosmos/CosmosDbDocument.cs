@@ -1,7 +1,7 @@
-using ClearDataService.Abstractions;
+using Clear.DataService.Abstractions;
 using Newtonsoft.Json;
 
-namespace ClearDataService.Entities.Cosmos;
+namespace Clear.DataService.Entities.Cosmos;
 
 public class CosmosDbDocument<T> where T : ICosmosDbEntity
 {

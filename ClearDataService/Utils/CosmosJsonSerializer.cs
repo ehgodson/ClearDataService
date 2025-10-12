@@ -1,11 +1,11 @@
-using ClearDataService.Exceptions;
+using Clear.DataService.Exceptions;
 using Microsoft.Azure.Cosmos;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System.Reflection;
 using System.Text;
 
-namespace ClearDataService.Utils;
+namespace Clear.DataService.Utils;
 
 public sealed class CosmosJsonSerializer : CosmosSerializer
 {

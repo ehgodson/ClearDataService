@@ -13,8 +13,8 @@
 
 ### Changed
 - **ICosmosDbContext Interface**: Added `AddToBatch<T>()` and `SaveBatchAsync()` method signatures
-- **ClearDataService.csproj**: Updated version number to 3.0.1
-- **Using Statements**: Added `ClearDataService.Models` namespace to ICosmosDbContext for batch result types
+- **Clear.DataService.csproj**: Updated version number to 3.0.1
+- **Using Statements**: Added `Clear.DataService.Models` namespace to ICosmosDbContext for batch result types
 
 ### Fixed
 - **Solution File**: Added proper Visual Studio solution file structure for improved development experience
