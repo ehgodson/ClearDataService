@@ -129,7 +129,7 @@ public class CosmosDbContext : ICosmosDbContext
     }
 
     // ======================================================
-    // Pagination Methods
+    // Pagination Methods with Sorting Support
     // ======================================================
 
     public async Task<PagedResult<T>> GetPagedList<T>(
@@ -137,11 +137,17 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
         var query = GetAsQueryable<T>(containerName, partitionKey);
-        var pagedResult = await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Apply sorting to documents then project to entity
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        var pagedResult = await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
 
         return new PagedResult<T>
         {
@@ -159,6 +165,7 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
@@ -171,7 +178,12 @@ public class CosmosDbContext : ICosmosDbContext
         );
 
         var query = GetAsQueryable<T>(containerName, convertedPredicate, partitionKey);
-        var pagedResult = await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Apply sorting to documents then project to entity
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        var pagedResult = await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
 
         return new PagedResult<T>
         {
@@ -188,11 +200,17 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
         var query = GetAsQueryable<T>(containerName, partitionKey);
-        return await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Convert entity sort builder to document sort builder
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        return await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
     }
 
     public async Task<PagedCosmosResult<T>> GetPagedDocuments<T>(
@@ -201,11 +219,17 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
         var query = GetAsQueryable<T>(containerName, predicate, partitionKey);
-        return await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Convert entity sort builder to document sort builder
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        return await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
     }
 
     // ======================================================
@@ -222,6 +246,7 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
@@ -232,6 +257,17 @@ public class CosmosDbContext : ICosmosDbContext
         if (!string.IsNullOrEmpty(whereClause))
         {
             sql += $" AND ({whereClause})";
+        }
+
+        // Add sorting to SQL if provided
+        if (sortBuilder?.HasSortCriteria == true)
+        {
+            var orderByClause = sortBuilder.ToSqlOrderBy(propertyName => 
+                $"data.{char.ToLowerInvariant(propertyName[0])}{propertyName[1..]}"); // Convert to camelCase for data property
+            if (!string.IsNullOrEmpty(orderByClause))
+            {
+                sql += $" {orderByClause}";
+            }
         }
 
         var queryDefinition = new QueryDefinition(sql);
@@ -266,6 +302,7 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
@@ -276,6 +313,17 @@ public class CosmosDbContext : ICosmosDbContext
         if (!string.IsNullOrEmpty(whereClause))
         {
             sql += $" AND ({whereClause})";
+        }
+
+        // Add sorting to SQL if provided (for documents, we use entity properties via data)
+        if (sortBuilder?.HasSortCriteria == true)
+        {
+            var orderByClause = sortBuilder.ToSqlOrderBy(propertyName => 
+                $"data.{char.ToLowerInvariant(propertyName[0])}{propertyName[1..]}"); // Convert to camelCase for data property
+            if (!string.IsNullOrEmpty(orderByClause))
+            {
+                sql += $" {orderByClause}";
+            }
         }
 
         var queryDefinition = new QueryDefinition(sql);
@@ -289,6 +337,78 @@ public class CosmosDbContext : ICosmosDbContext
 
         return await container.ToPagedResultWithSql<T>(
             sql, queryDefinition, pageSize, continuationToken, partitionKey, cancellationToken);
+    }
+
+    // ======================================================
+    // Helper Methods for Sorting
+    // ======================================================
+
+    /// <summary>
+    /// Applies sorting to a queryable if sort builder is provided
+    /// </summary>
+    private static IQueryable<CosmosDbDocument<T>> ApplySorting<T>(
+        IQueryable<CosmosDbDocument<T>> query, 
+        SortBuilder<CosmosDbDocument<T>>? sortBuilder) where T : ICosmosDbEntity
+    {
+        if (sortBuilder?.HasSortCriteria == true)
+        {
+            return sortBuilder.ApplyTo(query);
+        }
+        return query;
+    }
+
+    /// <summary>
+    /// Converts a SortBuilder<T> to SortBuilder<CosmosDbDocument<T>> by mapping expressions
+    /// </summary>
+    private static SortBuilder<CosmosDbDocument<T>>? ConvertSortBuilderToDocument<T>(SortBuilder<T>? entitySortBuilder) 
+        where T : ICosmosDbEntity
+    {
+        if (entitySortBuilder?.HasSortCriteria != true)
+        {
+            return null;
+        }
+
+        var documentSortBuilder = SortBuilder<CosmosDbDocument<T>>.Create();
+
+        foreach (var criteria in entitySortBuilder.SortCriteria)
+        {
+            // Create a new expression that accesses the same property through doc.Data
+            // We'll recreate the property access pattern based on the original expression
+            var documentParam = Expression.Parameter(typeof(CosmosDbDocument<T>), "doc");
+            var dataProperty = Expression.Property(documentParam, nameof(CosmosDbDocument<T>.Data));
+            
+            // Extract the property name from the original expression
+            var propertyName = GetPropertyNameFromExpression(criteria.KeySelector);
+            
+            // Create new property access: doc.Data.PropertyName
+            var entityProperty = Expression.Property(dataProperty, propertyName);
+            
+            // Convert to object if needed (for boxing value types)
+            Expression finalExpression = entityProperty.Type.IsValueType 
+                ? Expression.Convert(entityProperty, typeof(object))
+                : entityProperty;
+            
+            var documentExpression = Expression.Lambda<Func<CosmosDbDocument<T>, object>>(
+                finalExpression, 
+                documentParam);
+            
+            documentSortBuilder.ThenBy(documentExpression, criteria.Direction);
+        }
+
+        return documentSortBuilder;
+    }
+
+    /// <summary>
+    /// Extracts the property name from an expression like x => x.PropertyName
+    /// </summary>
+    private static string GetPropertyNameFromExpression<T>(Expression<Func<T, object>> expression)
+    {
+        return expression.Body switch
+        {
+            MemberExpression memberExpr => memberExpr.Member.Name,
+            UnaryExpression unaryExpr when unaryExpr.Operand is MemberExpression memberExpr2 => memberExpr2.Member.Name,
+            _ => throw new ArgumentException("Expression must be a property accessor", nameof(expression))
+        };
     }
 
     // ======================================================
@@ -325,7 +445,7 @@ public class CosmosDbContext : ICosmosDbContext
     }
 
     // ======================================================
-    // Hierarchical Partition Key Support
+    // Hierarchical Partition Key Support with Sorting
     // ======================================================
 
     public async Task<T> Get<T>(
@@ -368,18 +488,22 @@ public class CosmosDbContext : ICosmosDbContext
         return (await query.ToResult(cancellationToken)).Select(x => x.Data).ToList();
     }
 
-    // ======================================================
-
     public async Task<PagedResult<T>> GetPagedList<T>(
         string containerName,
         int pageSize,
         HierarchicalPartitionKey hierarchicalPartitionKey,
         string? continuationToken = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
         var query = GetAsQueryableWithHierarchicalKey<T>(containerName, hierarchicalPartitionKey);
-        var pagedResult = await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Apply sorting to documents then project to entity
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        var pagedResult = await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
 
         return new PagedResult<T>
         {
@@ -397,6 +521,7 @@ public class CosmosDbContext : ICosmosDbContext
         int pageSize,
         HierarchicalPartitionKey hierarchicalPartitionKey,
         string? continuationToken = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity
     {
@@ -409,7 +534,12 @@ public class CosmosDbContext : ICosmosDbContext
         );
 
         var query = GetAsQueryableWithHierarchicalKey<T>(containerName, convertedPredicate, hierarchicalPartitionKey);
-        var pagedResult = await query.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        
+        // Apply sorting to documents then project to entity
+        var documentSortBuilder = ConvertSortBuilderToDocument<T>(sortBuilder);
+        var sortedQuery = ApplySorting(query, documentSortBuilder);
+        
+        var pagedResult = await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
 
         return new PagedResult<T>
         {

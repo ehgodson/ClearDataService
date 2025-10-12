@@ -1,5 +1,7 @@
 ﻿using Clear.DataService.Entities.Cosmos;
 using Clear.DataService.Models;
+using Clear.DataService.Utils;
+using System.Linq.Expressions;
 
 namespace Clear.DataService.Abstractions;
 
@@ -65,6 +67,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -74,6 +77,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -82,6 +86,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -91,6 +96,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -102,6 +108,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -112,6 +119,7 @@ public interface ICosmosDbContext
         int pageSize = 100,
         string? continuationToken = null,
         string? partitionKey = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -171,6 +179,7 @@ public interface ICosmosDbContext
         int pageSize,
         HierarchicalPartitionKey hierarchicalPartitionKey,
         string? continuationToken = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
@@ -180,6 +189,7 @@ public interface ICosmosDbContext
         int pageSize,
         HierarchicalPartitionKey hierarchicalPartitionKey,
         string? continuationToken = null,
+        SortBuilder<T>? sortBuilder = null,
         CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
