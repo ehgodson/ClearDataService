@@ -1,4 +1,4 @@
-﻿namespace ClearDataService.Exceptions;
+﻿namespace Clear.DataService.Exceptions;
 
 public class PartitionKeyNullException : BaseException
 {

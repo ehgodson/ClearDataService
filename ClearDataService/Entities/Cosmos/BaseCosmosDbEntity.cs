@@ -1,7 +1,7 @@
-﻿using ClearDataService.Abstractions;
+﻿using Clear.DataService.Abstractions;
 using System.ComponentModel.DataAnnotations;
 
-namespace ClearDataService.Entities.Cosmos;
+namespace Clear.DataService.Entities.Cosmos;
 
 public abstract class BaseCosmosDbEntity : ICosmosDbEntity
 {
@@ -28,5 +28,26 @@ public record AuditDetails
     public DateTime Date { get; set; }
 
     [Required]
-    public string UserId { get; set; } = default!;
+    public AuditUser User { get; set; } = default!;
+
+    public static AuditDetails Create(DateTime date, string id, string name) => new()
+    {
+        Date = date,
+        User = AuditUser.Create(id, name)
+    };
+}
+
+public record AuditUser
+{
+    [Required]
+    public string Id { get; set; } = default!;
+
+    [Required]
+    public string Name { get; set; } = default!;
+
+    public static AuditUser Create(string id, string name) => new()
+    {
+        Id = id,
+        Name = name
+    };
 }

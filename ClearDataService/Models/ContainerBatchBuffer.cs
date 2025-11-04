@@ -1,14 +1,24 @@
+using Clear.DataService.Entities.Cosmos;
 using Microsoft.Azure.Cosmos;
 
-namespace ClearDataService.Models;
+namespace Clear.DataService.Models;
 
-public sealed record ContainerBatchBuffer(Container Container, Dictionary<string, List<object>> PartitionedItems)
+public sealed record ContainerBatchBuffer(Container Container,
+    Dictionary<string, List<ICosmosDbDocument>> PartitionedItems)
+    : IContainerBatchBuffer
 {
     public ContainerBatchBuffer(Container container) : this(container, [])
     {
     }
 
-    public void AddItem(string partitionKey, object item)
+    public IEnumerable<string> GetPartitionKeys() => PartitionedItems.Keys;
+
+    public IEnumerable<ICosmosDbDocument> GetDocuments(string partitionKey)
+    {
+        return PartitionedItems.TryGetValue(partitionKey, out var list) ? list : Enumerable.Empty<ICosmosDbDocument>();
+    }
+
+    public void AddDocument(string partitionKey, params IEnumerable<ICosmosDbDocument> item)
     {
         if (!PartitionedItems.TryGetValue(partitionKey, out var list))
         {
@@ -16,6 +26,6 @@ public sealed record ContainerBatchBuffer(Container Container, Dictionary<string
             PartitionedItems[partitionKey] = list;
         }
 
-        list.Add(item);
+        list.AddRange(item);
     }
 }
