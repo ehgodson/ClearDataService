@@ -1,8 +1,8 @@
-﻿using ClearDataService.Abstractions;
+﻿using Clear.DataService.Abstractions;
 using Dapper;
 using Microsoft.Data.SqlClient;
 
-namespace ClearDataService.Contexts;
+namespace Clear.DataService.Contexts;
 
 /// <summary>
 /// This class is the base class for all data services in the project.

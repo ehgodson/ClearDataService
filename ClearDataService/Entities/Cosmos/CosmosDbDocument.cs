@@ -1,9 +1,9 @@
-using ClearDataService.Abstractions;
+using Clear.DataService.Abstractions;
 using Newtonsoft.Json;
 
-namespace ClearDataService.Entities.Cosmos;
+namespace Clear.DataService.Entities.Cosmos;
 
-public class CosmosDbDocument<T> where T : ICosmosDbEntity
+public class CosmosDbDocument<T> : ICosmosDbDocument where T : ICosmosDbEntity
 {
     [JsonProperty("id")]
     public string Id { get; private set; } = default!;
@@ -55,4 +55,12 @@ public class CosmosDbDocument<T> where T : ICosmosDbEntity
 
         return new CosmosDbDocument<T>(data.Id, partitionKey, data);
     }
+}
+
+public interface ICosmosDbDocument
+{
+    string Id { get; }
+    string PartitionKey { get; }
+    string ETag { get; }
+    DateTime Timestamp { get; }
 }

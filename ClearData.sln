@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.2.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11116.177 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClearDataService", "ClearDataService\ClearDataService.csproj", "{839A7202-ECA0-65C6-65A2-F2E4386DAFD5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClearDataService.Tests", "ClearDataService.Tests\ClearDataService.Tests.csproj", "{989CD289-EC17-4FBF-9CE0-24B7DD15F433}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClearDataService.IntegrationTests", "ClearDataService.IntegrationTests\ClearDataService.IntegrationTests.csproj", "{756E1F38-E3CE-033E-205F-F2044E0670A2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{989CD289-EC17-4FBF-9CE0-24B7DD15F433}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{989CD289-EC17-4FBF-9CE0-24B7DD15F433}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{989CD289-EC17-4FBF-9CE0-24B7DD15F433}.Release|Any CPU.Build.0 = Release|Any CPU
+		{756E1F38-E3CE-033E-205F-F2044E0670A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{756E1F38-E3CE-033E-205F-F2044E0670A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{756E1F38-E3CE-033E-205F-F2044E0670A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{756E1F38-E3CE-033E-205F-F2044E0670A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

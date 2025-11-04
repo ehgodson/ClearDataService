@@ -1,6 +1,6 @@
-﻿using ClearDataService.Abstractions;
+﻿using Clear.DataService.Abstractions;
 
-namespace ClearDataService.Repo;
+namespace Clear.DataService.Repo;
 
 public abstract class BaseSqlDbRepo<T>(ISqlDbContext db) : ISqlDbRepo<T> where T : class
 {

@@ -1,9 +1,9 @@
-using ClearDataService.Exceptions;
-using ClearDataService.Models;
-using ClearDataService.Utils;
+using Clear.DataService.Exceptions;
+using Clear.DataService.Models;
+using Clear.DataService.Utils;
 using Microsoft.Azure.Cosmos;
 
-namespace ClearDataService.Migrators;
+namespace Clear.DataService.Migrators;
 
 public interface ICosmosDbMigrator
 {
@@ -30,13 +30,28 @@ public class CosmosDbMigrator : ICosmosDbMigrator
         }
     }
 
-    private static async Task CreateContainer(DatabaseResponse db, CosmosDbContainerInfo container)
+    private static async Task CreateContainer(DatabaseResponse db, CosmosDbContainerInfo containerInfo)
     {
-        if (string.IsNullOrEmpty(container.Name))
+        if (string.IsNullOrEmpty(containerInfo.Name))
         {
             throw new ContainerNameEmptyException();
         }
 
-        await db.Database.CreateContainerIfNotExistsAsync(container.Name, container.PartitionKeyPath);
+        // Check if container uses hierarchical partition keys
+        if (containerInfo.IsHierarchical)
+        {
+            // Create container with hierarchical partition key definition
+            var containerProperties = new ContainerProperties(containerInfo.Name, containerInfo.PartitionKeyPaths);
+
+            // Set partition key version to V2 for hierarchical support
+            containerProperties.PartitionKeyDefinitionVersion = PartitionKeyDefinitionVersion.V2;
+
+            await db.Database.CreateContainerIfNotExistsAsync(containerProperties);
+        }
+        else
+        {
+            // Create container with single partition key (traditional approach)
+            await db.Database.CreateContainerIfNotExistsAsync(containerInfo.Name, containerInfo.PartitionKeyPath);
+        }
     }
 }

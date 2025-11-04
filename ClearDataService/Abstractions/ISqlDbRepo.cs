@@ -1,5 +1,5 @@
 ﻿
-namespace ClearDataService.Abstractions;
+namespace Clear.DataService.Abstractions;
 
 public interface ISqlDbRepo<T> where T : class
 {

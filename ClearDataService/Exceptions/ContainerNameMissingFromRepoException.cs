@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace ClearDataService.Exceptions;
+namespace Clear.DataService.Exceptions;
 
 public class ContainerNameMissingFromRepoException(params List<Type> repoTypes) 
     : BaseException(GetMessage(repoTypes))

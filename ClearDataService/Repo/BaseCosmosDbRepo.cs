@@ -1,7 +1,8 @@
-using ClearDataService.Abstractions;
-using ClearDataService.Entities.Cosmos;
+using Clear.DataService.Abstractions;
+using Clear.DataService.Entities.Cosmos;
+using System.Linq.Expressions;
 
-namespace ClearDataService.Repo;
+namespace Clear.DataService.Repo;
 
 public abstract class BaseCosmosDbRepo<T> : ICosmosDbRepo<T> where T : ICosmosDbEntity
 {
@@ -21,7 +22,13 @@ public abstract class BaseCosmosDbRepo<T> : ICosmosDbRepo<T> where T : ICosmosDb
     => await _context.GetList<T>(_containerName, partitionKey);
 
     public async Task<List<T>> Get(Func<T, bool> predicate, string? partitionKey)
-    => await _context.GetList(_containerName, predicate, partitionKey);
+    {
+        // For the repository pattern, we'll fetch all documents and filter in memory
+        // This maintains the simple Func<T, bool> interface while still being reasonably efficient
+        // for partition-scoped queries. For better performance, consumers should use the context directly.
+        var allDocuments = await _context.GetDocuments<T>(_containerName, partitionKey);
+        return allDocuments.Select(doc => doc.Data).Where(predicate).ToList();
+    }
 
     public async Task<T> Create(T entity, string partitionKey)
     => GetData(await _context.Save<T>(_containerName, entity, partitionKey));

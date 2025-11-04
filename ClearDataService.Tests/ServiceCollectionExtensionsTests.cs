@@ -1,8 +1,9 @@
-using ClearDataService.Abstractions;
-using ClearDataService.Contexts;
-using ClearDataService.Factory;
-using ClearDataService.Repo;
-using ClearDataService.Utils;
+using Clear.DataService;
+using Clear.DataService.Abstractions;
+using Clear.DataService.Contexts;
+using Clear.DataService.Factory;
+using Clear.DataService.Repo;
+using Clear.DataService.Utils;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

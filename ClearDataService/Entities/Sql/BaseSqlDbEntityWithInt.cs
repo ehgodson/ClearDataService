@@ -1,4 +1,4 @@
-﻿namespace ClearDataService.Entities.Sql;
+﻿namespace Clear.DataService.Entities.Sql;
 
 public abstract class BaseSqlDbEntity : BaseSqlDbEntity<int>;
 
