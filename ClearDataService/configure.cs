@@ -67,6 +67,7 @@ public static class ServiceExtensions
     {
         return new CosmosClientOptions
         {
+            AllowBulkExecution = true,
             ConnectionMode = ConnectionMode.Direct,
             PortReuseMode = PortReuseMode.PrivatePortPool,
             IdleTcpConnectionTimeout = new TimeSpan(0, 60, 0), //recommended values are from 20 minutes to 24 hours.

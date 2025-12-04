@@ -127,7 +127,16 @@ class Program
             Console.ResetColor();
 
             // Ensure database and container exist
-            await EnsureCosmosDbSetup(cosmosClient, databaseName, containerName);
+            var containerConfig = await EnsureCosmosDbSetup(cosmosClient, databaseName, containerName);
+
+            // Check if container supports hierarchical partition keys
+            if (containerConfig?.PartitionKeyPaths?.Count == 1)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n⚠ Note: Container uses single partition key path. Hierarchical partition key tests will be skipped.");
+                Console.WriteLine("  To test hierarchical partition keys, create a container with multiple partition key paths.");
+                Console.ResetColor();
+            }
 
             var tests = new CosmosDbIntegrationTests(context, containerName, partitionKey);
             var allPassed = await tests.RunAllTests();
@@ -228,7 +237,7 @@ class Program
         }
     }
 
-    static async Task EnsureCosmosDbSetup(CosmosClient client, string databaseName, string containerName)
+    static async Task<ContainerProperties?> EnsureCosmosDbSetup(CosmosClient client, string databaseName, string containerName)
     {
         try
         {
@@ -238,18 +247,24 @@ class Program
             var databaseResponse = await client.CreateDatabaseIfNotExistsAsync(databaseName);
             var database = databaseResponse.Database;
 
-            // Create container if it doesn't exist
+            // Create container if it doesn't exist with single partition key
             var containerProperties = new ContainerProperties
             {
                 Id = containerName,
                 PartitionKeyPath = "/partitionKey"
             };
 
-            await database.CreateContainerIfNotExistsAsync(containerProperties);
+            var response = await database.CreateContainerIfNotExistsAsync(containerProperties, throughput: 400);
+            var container = response.Container;
+
+            // Read the actual container properties to check configuration
+            var actualProperties = await container.ReadContainerAsync();
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"✓ Database '{databaseName}' and Container '{containerName}' are ready");
             Console.ResetColor();
+
+            return actualProperties.Resource;
         }
         catch (Exception ex)
         {
@@ -257,6 +272,7 @@ class Program
             Console.WriteLine($"⚠ Warning: Could not ensure database/container setup: {ex.Message}");
             Console.WriteLine("Proceeding with tests - ensure the database and container exist manually.");
             Console.ResetColor();
+            return null;
         }
     }
 }

@@ -1,4 +1,4 @@
-using Clear.DataService.Abstractions;
+﻿using Clear.DataService.Abstractions;
 using Clear.DataService.Entities.Cosmos;
 using Clear.DataService.Exceptions;
 using Clear.DataService.Models;
@@ -383,12 +383,71 @@ public class CosmosDbContext : ICosmosDbContext
         await container.DeleteItemAsync<T>(id, GetPartitionKey(partitionKey));
     }
 
-    public async Task DeleteAll(string containerName, CosmosDbPartitionKey partitionKey)
+    public async Task DeleteAll(CosmosDbContainerInfo containerInfo, CosmosDbPartitionKey partitionKey)
     {
-        var container = GetContainer(containerName);
-        await container.DeleteAllItemsByPartitionKeyStreamAsync(
-            partitionKey.ToCosmosPartitionKey()
+        var container = GetContainer(containerInfo.Name);
+
+        // Build SQL query to select id and all partition key paths
+        var selectClause = CosmosDbDeleteHelper.BuildSelectClause(containerInfo.PartitionKeyPaths);
+        var query = container.GetItemQueryIterator<dynamic>(
+            new QueryDefinition(selectClause),
+            requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = partitionKey.ToCosmosPartitionKey()
+            }
         );
+
+        List<string> failedDeletes = new();
+        int successCount = 0;
+        int failureCount = 0;
+
+        while (query.HasMoreResults)
+        {
+            var batch = await query.ReadNextAsync();
+            var tasks = new List<Task<(string id, bool success, string? error)>>();
+
+            foreach (var item in batch)
+            {
+                try
+                {
+                    var itemId = item.id.ToString();
+                    
+                    // Extract partition key values from the item and build the partition key
+                    var itemPartitionKey = CosmosDbDeleteHelper.BuildPartitionKeyFromItem(item, containerInfo.PartitionKeyPaths);
+                    
+                    tasks.Add(CosmosDbDeleteHelper.DeleteItemSafeAsync(container, itemId, itemPartitionKey));
+
+                    if (tasks.Count >= 10)
+                    {
+                        var results = await Task.WhenAll(tasks);
+                        CosmosDbDeleteHelper.ProcessResults(results, ref successCount, ref failureCount, failedDeletes);
+                        tasks.Clear();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // If we can't extract partition key, record the failure
+                    var itemId = item.id?.ToString() ?? "unknown";
+                    failureCount++;
+                    failedDeletes.Add($"{itemId} (Failed to extract partition key: {ex.Message})");
+                }
+            }
+
+            if (tasks.Count > 0)
+            {
+                var results = await Task.WhenAll(tasks);
+                CosmosDbDeleteHelper.ProcessResults(results, ref successCount, ref failureCount, failedDeletes);
+            }
+        }
+
+        if (failedDeletes.Count > 0)
+        {
+            throw new AggregateException(
+                $"DeleteAll partially failed. Success: {successCount}, Failed: {failureCount}. " +
+                $"Failed IDs: {string.Join(", ", failedDeletes.Take(10))}{(failedDeletes.Count > 10 ? "..." : "")}",
+                failedDeletes.Select(id => new Exception($"Failed to delete item: {id}"))
+            );
+        }
     }
 
     // ============================================
