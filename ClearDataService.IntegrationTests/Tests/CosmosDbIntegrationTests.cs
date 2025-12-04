@@ -44,8 +44,15 @@ public class CosmosDbIntegrationTests
         allPassed &= await RunTest("12. Paged Results with SQL", TestPagedResultsWithSql);
         allPassed &= await RunTest("13. Get as Queryable", TestGetAsQueryable);
         allPassed &= await RunTest("14. Batch Operations", TestBatchOperations);
+        
+        // Note: Hierarchical partition key tests require a container configured with multiple partition key paths
+        // These tests are included but may fail if the container uses a single partition key path
+        Console.WriteLine("\n  Note: Tests 15 and 18 require a container with hierarchical partition key support");
         allPassed &= await RunTest("15. Hierarchical Partition Key", TestHierarchicalPartitionKey);
+        
         allPassed &= await RunTest("16. Delete Entity", TestDelete);
+        allPassed &= await RunTest("17. Delete All Entities in Partition", TestDeleteAll);
+        allPassed &= await RunTest("18. Delete All with Hierarchical Partition Key", TestDeleteAllHierarchical);
 
         Console.WriteLine("\n═══════════════════════════════════════════════════════════");
         Console.WriteLine($"   CosmosDB Tests {(allPassed ? "PASSED" : "FAILED")}");
@@ -460,5 +467,87 @@ public class CosmosDbIntegrationTests
         {
             // Expected - item not found
         }
+    }
+
+    private async Task TestDeleteAll()
+    {
+        // Create a unique partition key for this test
+        var testPartitionKey = "delete-all-test-" + Guid.NewGuid().ToString().Substring(0, 8);
+
+        // Create multiple products in the same partition
+        var productIds = new List<string>();
+        for (int i = 0; i < 5; i++)
+        {
+            var product = new Product
+            {
+                Id = $"delete-all-product-{i}-{Guid.NewGuid()}",
+                Name = $"Delete All Test Product {i}",
+                Price = 10m * (i + 1),
+                Category = "DeleteAllTest",
+                StockQuantity = i + 1
+            };
+            productIds.Add(product.Id);
+            await _context.Save(_containerName, product, testPartitionKey);
+        }
+
+        // Verify products exist
+        var listBefore = await _context.GetList<Product>(_containerName, testPartitionKey);
+        if (listBefore.Count != 5)
+            throw new Exception($"Expected 5 products before delete but found {listBefore.Count}");
+
+        // Delete all products in the partition
+        await _context.DeleteAll(_containerName, testPartitionKey);
+
+        // Verify all products are deleted
+        var listAfter = await _context.GetList<Product>(_containerName, testPartitionKey);
+        if (listAfter.Count != 0)
+            throw new Exception($"Expected 0 products after DeleteAll but found {listAfter.Count}");
+    }
+
+    private async Task TestDeleteAllHierarchical()
+    {
+        // Create hierarchical partition key
+        var region = "Region-DeleteTest-" + Guid.NewGuid().ToString().Substring(0, 8);
+        var customer = "Customer-DeleteTest-" + Guid.NewGuid().ToString().Substring(0, 8);
+        var hpk = CosmosDbPartitionKey.Create(region, customer);
+
+        // Create multiple orders in the same hierarchical partition
+        var orderIds = new List<string>();
+        for (int i = 0; i < 3; i++)
+        {
+            var order = new Order
+            {
+                Id = $"delete-all-order-{i}-{Guid.NewGuid()}",
+                CustomerId = customer,
+                Region = region,
+                TotalAmount = 100m * (i + 1),
+                Status = "Pending",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem 
+                    { 
+                        ProductId = $"P{i}", 
+                        ProductName = $"Product {i}", 
+                        Quantity = i + 1, 
+                        UnitPrice = 100m 
+                    }
+                }
+            };
+            orderIds.Add(order.Id);
+            await _context.Save(_containerName, order, hpk);
+        }
+
+        // Verify orders exist
+        var listBefore = await _context.GetList<Order>(_containerName, hpk);
+        if (listBefore.Count != 3)
+            throw new Exception($"Expected 3 orders before delete but found {listBefore.Count}");
+
+        // Delete all orders in the hierarchical partition
+        await _context.DeleteAll(_containerName, hpk);
+
+        // Verify all orders are deleted
+        var listAfter = await _context.GetList<Order>(_containerName, hpk);
+        if (listAfter.Count != 0)
+            throw new Exception($"Expected 0 orders after DeleteAll but found {listAfter.Count}");
     }
 }

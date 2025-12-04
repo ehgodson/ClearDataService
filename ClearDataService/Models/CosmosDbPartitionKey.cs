@@ -17,6 +17,8 @@ public class CosmosDbPartitionKey
     /// </summary>
     public const int MaxLevels = 3;
 
+    public const string DefaultPartitionKeyValue = "default";
+
     private CosmosDbPartitionKey(params PartitionKeyValue[] keyValues)
     {
         if (keyValues == null || keyValues.Length == 0)

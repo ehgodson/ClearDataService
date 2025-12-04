@@ -211,5 +211,5 @@ public interface ICosmosDbContext
     /// <summary>
     /// Deletes all entities within a specified partition.
     /// </summary>
-    Task DeleteAll(string containerName, CosmosDbPartitionKey partitionKey);
+    Task DeleteAll(CosmosDbContainerInfo containerName, CosmosDbPartitionKey partitionKey);
 }
