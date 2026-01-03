@@ -461,9 +461,7 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var partitionKeyString = partitionKey.ToString();
-
-        if (string.IsNullOrWhiteSpace(partitionKeyString))
+        if (string.IsNullOrWhiteSpace(partitionKey.GetKey()))
         {
             throw new PartitionKeyNullException();
         }
@@ -479,13 +477,14 @@ public class CosmosDbContext : ICosmosDbContext
             _containerBuffers[containerName] = buffer;
         }
 
-        var docs = items.Select(x => CosmosDbDocument<T>.Create(x, partitionKeyString));
+        var docs = items.Select(x => CosmosDbDocument<T>.Create(x, partitionKey.ToString()));
         var typedBuffer = (ContainerBatchBuffer)buffer;
-        typedBuffer.AddDocument(partitionKeyString, docs);
+        typedBuffer.AddDocument(partitionKey, docs); // Fixed: Pass partitionKey object, not string
     }
 
     public async Task<List<CosmosBatchResult>> SaveBatchAsync()
     {
+        const int MAX_BATCH_SIZE = 100; // Cosmos DB limit for operations per transactional batch
         var batchResults = new List<CosmosBatchResult>();
 
         foreach (var bufferPair in _containerBuffers)
@@ -496,63 +495,100 @@ public class CosmosDbContext : ICosmosDbContext
 
             foreach (var partitionedItems in buffer.PartitionedItems)
             {
-                var partitionKey = partitionedItems.Key;
+                var key = partitionedItems.Key;
                 var items = partitionedItems.Value;
 
-                if (items == null || items.Count == 0)
+                if (items == null || items.Documents.Count == 0)
                 {
                     continue;
                 }
 
-                var batch = container.CreateTransactionalBatch(new PartitionKey(partitionKey));
+                // Chunk documents into groups of MAX_BATCH_SIZE to respect Cosmos DB limits
+                var documentChunks = items.Documents
+                    .Select((doc, index) => new { doc, index })
+                    .GroupBy(x => x.index / MAX_BATCH_SIZE)
+                    .Select(g => g.Select(x => x.doc).ToList())
+                    .ToList();
 
-                foreach (var item in items)
+                var totalDocuments = items.Documents.Count;
+                var totalChunks = documentChunks.Count;
+
+                // Process each chunk as a separate transactional batch
+                for (int chunkIndex = 0; chunkIndex < documentChunks.Count; chunkIndex++)
                 {
-                    batch.UpsertItem(item);
-                }
+                    var chunk = documentChunks[chunkIndex];
+                    var chunkNumber = chunkIndex + 1;
+                    var itemRange = $"{chunkIndex * MAX_BATCH_SIZE + 1}-{chunkIndex * MAX_BATCH_SIZE + chunk.Count}";
 
-                try
-                {
-                    TransactionalBatchResponse response = await batch.ExecuteAsync();
+                    var batch = container.CreateTransactionalBatch(
+                        items.PartitionKey.ToCosmosPartitionKey()
+                    );
 
-                    if (response.IsSuccessStatusCode)
+                    foreach (var item in chunk)
                     {
-                        batchResults.Add(
-                            CosmosBatchResult.Success(
-                                containerName,
-                                partitionKey,
-                                response.StatusCode
-                            )
-                        );
+                        batch.UpsertItem(item);
                     }
-                    else
+
+                    try
                     {
+                        TransactionalBatchResponse response = await batch.ExecuteAsync();
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var message = totalChunks > 1
+                                ? $"Successfully processed {chunk.Count} items (items {itemRange} of {totalDocuments}) in batch {chunkNumber}/{totalChunks}"
+                                : null; // Don't clutter message if only one chunk
+
+                            batchResults.Add(
+                                CosmosBatchResult.Success(
+                                    containerName,
+                                    key,
+                                    response.StatusCode,
+                                    message
+                                )
+                            );
+                        }
+                        else
+                        {
+                            var message = totalChunks > 1
+                                ? $"Batch {chunkNumber}/{totalChunks} (items {itemRange}): {response.ErrorMessage}"
+                                : response.ErrorMessage;
+
+                            batchResults.Add(
+                                CosmosBatchResult.Failure(
+                                    containerName,
+                                    key,
+                                    response.StatusCode,
+                                    message
+                                )
+                            );
+                        }
+                    }
+                    catch (CosmosException ex)
+                    {
+                        var message = totalChunks > 1
+                            ? $"Batch {chunkNumber}/{totalChunks} (items {itemRange}): {ex.Message}"
+                            : ex.Message;
+
                         batchResults.Add(
                             CosmosBatchResult.Failure(
                                 containerName,
-                                partitionKey,
-                                response.StatusCode,
-                                response.ErrorMessage
+                                key,
+                                ex.StatusCode,
+                                message
                             )
                         );
                     }
-                }
-                catch (CosmosException ex)
-                {
-                    batchResults.Add(
-                        CosmosBatchResult.Failure(
-                            containerName,
-                            partitionKey,
-                            ex.StatusCode,
-                            ex.Message
-                        )
-                    );
-                }
-                catch (Exception ex)
-                {
-                    batchResults.Add(
-                        CosmosBatchResult.Failure(containerName, partitionKey, null, ex.Message)
-                    );
+                    catch (Exception ex)
+                    {
+                        var message = totalChunks > 1
+                            ? $"Batch {chunkNumber}/{totalChunks} (items {itemRange}): {ex.Message}"
+                            : ex.Message;
+
+                        batchResults.Add(
+                            CosmosBatchResult.Failure(containerName, key, null, message)
+                        );
+                    }
                 }
             }
         }

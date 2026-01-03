@@ -193,6 +193,14 @@ public class CosmosDbPartitionKey
     }
 
     /// <summary>
+    /// Creates a string representation suitable for logging/debugging
+    /// </summary>
+    public string GetKey()
+    {
+        return string.Join("_", _keyValues);
+    }
+
+    /// <summary>
     /// Implicit conversion from string (for backward compatibility)
     /// </summary>
     public static implicit operator CosmosDbPartitionKey(string partitionKey)

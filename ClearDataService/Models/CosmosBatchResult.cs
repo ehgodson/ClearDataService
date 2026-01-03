@@ -21,12 +21,12 @@ public record CosmosBatchResult
     public string? Message { get; }
 
     public static CosmosBatchResult Success(string containerName,
-        string partitionKey, HttpStatusCode statusCode, string message = "")
-    => new(true, containerName, partitionKey, statusCode, string.Empty);
+        string partitionKey, HttpStatusCode statusCode, string? message = null)
+    => new(true, containerName, partitionKey, statusCode, message ?? string.Empty);
 
     public static CosmosBatchResult Failure(string containerName,
-        string partitionKey, HttpStatusCode? statusCode, string message = "")
-    => new(false, containerName, partitionKey, statusCode, message);
+        string partitionKey, HttpStatusCode? statusCode, string? message = null)
+    => new(false, containerName, partitionKey, statusCode, message ?? string.Empty);
 
     public override string ToString()
     {

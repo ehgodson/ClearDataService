@@ -1,5 +1,36 @@
 # Changelog
 
+## [4.1.0] - 2026-01-03
+### Fixed
+- **Cosmos DB Batch Operations**: Complete refactoring of batch processing to fix critical issues
+  - Fixed partition key handling: Now properly stores and uses `CosmosDbPartitionKey` objects instead of strings
+  - Introduced `CosmosDbDocKeyCombo` record to couple partition keys with their documents
+  - Fixed batch size limitations: Automatically chunks operations into groups of 100 (Cosmos DB limit)
+  - Enhanced error reporting: Batch operations now report which chunk failed with item ranges
+  - Fixed `AddToBatch` to use `GetKey()` method for consistent partition key string representation
+  - Improved batch result messages to include chunk progress (e.g., "items 1-100 of 250, batch 1/3")
+
+### Changed
+- **ContainerBatchBuffer Model**: Complete refactoring for better type safety and partition key handling
+  - Changed `PartitionedItems` from `Dictionary<string, List<ICosmosDbDocument>>` to `Dictionary<string, CosmosDbDocKeyCombo>`
+  - Updated `GetDocuments()` to return `CosmosDbDocKeyCombo` instead of `IEnumerable<ICosmosDbDocument>`
+  - Updated `AddDocument()` to accept `CosmosDbPartitionKey` objects instead of strings
+  - Added proper partition key validation when adding documents
+- **CosmosDbPartitionKey**: Added `GetKey()` method for consistent string representation across partition key levels
+- **SaveBatchAsync Logic**: Major improvements to batch execution
+  - Now processes documents in chunks of 100 items per transactional batch
+  - Better error handling with detailed messages for each chunk
+  - Improved success/failure tracking with item ranges
+- **CosmosBatchResult**: Updated factory methods to accept nullable message parameters
+- **IContainerBatchBuffer**: Moved interface definition to ContainerBatchBuffer.cs for better organization
+- **Version**: Bumped from 4.0.0 to 4.1.0
+
+### Technical Details
+- **Root Cause**: Previous implementation stored partition keys as strings, losing hierarchical structure
+- **Solution**: Store full `CosmosDbPartitionKey` objects and use `ToCosmosPartitionKey()` during batch execution
+- **Performance**: Added chunking logic ensures batches never exceed Cosmos DB's 100-operation limit
+- **Reliability**: Enhanced error messages now identify exactly which items failed in large batch operations
+
 ## [3.0.1] - 2025-09-29
 ### Added
 - **Batch Operations for Cosmos DB**: Added comprehensive batch processing support for Cosmos DB operations

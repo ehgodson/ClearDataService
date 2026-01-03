@@ -24,7 +24,8 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 - **Base Entity Classes**: Pre-built entities with audit trail support
 - **Flexible Querying**: LINQ support for both SQL and Cosmos DB
 - **Batch Operations**: Efficient bulk operations for both SQL and Cosmos DB
-- **Cosmos DB Batch Processing**: Transactional batch operations with automatic partition key grouping
+- **Cosmos DB Batch Processing**: Transactional batch operations with automatic partition key grouping and smart chunking (max 100 ops per batch)
+- **Hierarchical Partition Keys**: Full support for up to 3-level partition keys in Cosmos DB
 - **Soft Delete**: Built-in soft delete functionality
 - **Audit Trails**: Automatic creation and modification tracking
 
@@ -40,7 +41,7 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 ### Installation
 
 ```bash
-dotnet add package Clear.DataService --version 3.0.1
+dotnet add package Clear.DataService --version 4.1.0
 ```
 
 ### SQL Database Setup
