@@ -184,6 +184,18 @@ public abstract class BaseSqlDbContext(DbContext _context) : ISqlDbContext
         return [.. await conn.QueryAsync<T>(sql, parameters)];
     }
 
+    public async Task<List<dynamic>> Query(string sql)
+    {
+        using SqlConnection conn = new(_connectionString);
+        return [.. await conn.QueryAsync(sql)];
+    }
+
+    public async Task<List<dynamic>> Query(string sql, object parameters)
+    {
+        using SqlConnection conn = new(_connectionString);
+        return [.. await conn.QueryAsync(sql, parameters)];
+    }
+
     public async Task<T?> QueryFirstOrDefault<T>(string sql)
     {
         using SqlConnection conn = new(_connectionString);
