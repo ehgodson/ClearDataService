@@ -210,42 +210,35 @@ foreach (var result in results)
 }
 ```
 
-## 7. Repository Pattern
+## 7. Application Service with Direct Context Access
 
 ```csharp
 using Clear.DataService.Abstractions;
-using Clear.DataService.Repo;
-
-// ===== REPOSITORY FOR 2-LEVEL CONTAINER =====
-public interface ITenantUserRepository : ICosmosDbRepo<TenantUser>
+// ===== SERVICE FOR 2-LEVEL CONTAINER =====
+public class TenantUserService
 {
-    Task<List<TenantUser>> GetTenantUsersAsync(string tenantId);
-    Task<TenantUser?> GetUserAsync(string tenantId, string userId, string id);
-Task<TenantUser> CreateUserAsync(TenantUser user);
-}
+    private readonly ICosmosDbContext _context;
 
-public class TenantUserRepository : BaseCosmosDbRepo<TenantUser>, ITenantUserRepository
-{
-    public TenantUserRepository(ICosmosDbContext context) : base(context, "Users") { }
+    public TenantUserService(ICosmosDbContext context) => _context = context;
 
     public async Task<List<TenantUser>> GetTenantUsersAsync(string tenantId)
     {
         // Query with Level 1 only
         var partitionKey = HierarchicalPartitionKey.Create(tenantId);
-        return await Get(partitionKey);
- }
+        return await _context.GetList<TenantUser>("Users", partitionKey);
+    }
 
     public async Task<TenantUser?> GetUserAsync(string tenantId, string userId, string id)
     {
         // Query with full 2-level key
         var partitionKey = HierarchicalPartitionKey.Create(tenantId, userId);
-return await Get(id, partitionKey);
+        return await _context.Get<TenantUser>("Users", id, partitionKey);
     }
 
     public async Task<TenantUser> CreateUserAsync(TenantUser user)
     {
         var partitionKey = HierarchicalPartitionKey.Create(user.TenantId, user.UserId);
-      return await Create(user, partitionKey);
+        return (await _context.Save("Users", user, partitionKey)).Data;
     }
 }
 ```
@@ -452,7 +445,7 @@ These examples demonstrate:
 - ? How to define entities matching the partition key hierarchy
 - ? How to create and use hierarchical partition keys
 - ? How to perform CRUD operations at different hierarchy levels
-- ? How to implement the repository pattern
+- ? How to use contexts directly from application services
 - ? How to build multi-tenant applications
 - ? How to handle errors properly
 - ? How to write unit tests

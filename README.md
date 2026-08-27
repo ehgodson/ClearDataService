@@ -2,21 +2,21 @@
 
 [![NuGet version](https://badge.fury.io/nu/Clear.DataService.svg)](https://badge.fury.io/nu/Clear.DataService)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/9.0)
+[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-A comprehensive data access library for .NET 9 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. Clear.DataService provides a unified approach to data operations across both relational and NoSQL databases.
+A comprehensive data access library for .NET 10 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. Clear.DataService provides a unified approach to data operations across both relational and NoSQL databases.
 
 ## ? Features
 
 ### ??? Dual Database Support
 - **SQL Server**: Entity Framework Core + Dapper integration for maximum flexibility
 - **Azure Cosmos DB**: Complete document database operations with partition key support
-- **Unified Patterns**: Consistent repository pattern across both database types
+- **Unified Contexts**: Explicit SQL and Cosmos DB context APIs
 
 ### ??? Architecture Excellence
 - **Clean Architecture**: Well-defined abstractions and separation of concerns
 - **Dependency Injection**: Full .NET Core DI container integration
-- **Repository Pattern**: Built-in repository implementations for both database types
+- **Direct Data Access**: Inject the context required by each application service
 - **Entity Framework Integration**: Leverage EF Core's ORM capabilities
 - **Raw SQL Support**: Execute custom SQL queries using Dapper
 
@@ -41,7 +41,7 @@ A comprehensive data access library for .NET 9 that combines the power of Entity
 ### Installation
 
 ```bash
-dotnet add package Clear.DataService --version 4.1.0
+dotnet add package Clear.DataService --version 6.0.0
 ```
 
 ### SQL Database Setup
@@ -82,7 +82,7 @@ app.CreateCosmosDatabaseAndContainers(
 
 ## ?? Usage Examples
 
-### SQL Repository Example
+### SQL Context Example
 
 ```csharp
 public class User : BaseSqlDbEntity<int>
@@ -92,25 +92,21 @@ public class User : BaseSqlDbEntity<int>
     public bool IsActive { get; set; } = true;
 }
 
-public interface IUserRepository : ISqlDbRepo<User>
+public class UserService
 {
-    Task<User?> GetByEmailAsync(string email);
-    Task<List<User>> GetActiveUsersAsync();
-}
+    private readonly ISqlDbContext _context;
 
-public class UserRepository : BaseSqlDbRepo<User>, IUserRepository
-{
-    public UserRepository(ISqlDbContext context) : base(context) { }
+    public UserService(ISqlDbContext context) => _context = context;
 
     public async Task<User?> GetByEmailAsync(string email)
-        => await Get(u => u.Email == email);
+        => await _context.Get<User>(u => u.Email == email, trackEntities: false);
 
     public async Task<List<User>> GetActiveUsersAsync()
-        => await Find(u => u.IsActive);
+        => await _context.Find<User>(u => u.IsActive);
 }
 ```
 
-### Cosmos DB Repository Example
+### Cosmos DB Context Example
 
 ```csharp
 public class Order : BaseCosmosDbEntity
@@ -121,80 +117,26 @@ public class Order : BaseCosmosDbEntity
     public OrderStatus Status { get; set; }
 }
 
-public class OrderRepository : BaseCosmosDbRepo<Order>
+public class OrderService
 {
-    public OrderRepository(ICosmosDbContext context) : base(context, "Orders") { }
+    private readonly ICosmosDbContext _context;
+
+    public OrderService(ICosmosDbContext context) => _context = context;
 
     public async Task<List<Order>> GetByCustomerAsync(string customerId)
-        => await Get(customerId); // customerId is the partition key
+        => await _context.GetList<Order>("Orders", customerId);
 
     public async Task<Order> CreateOrderAsync(Order order, string customerId)
-        => await Create(order, customerId);
+        => (await _context.Save("Orders", order, customerId)).Data;
 
     // New: Batch operations for high-performance bulk operations
     public async Task<List<CosmosBatchResult>> CreateOrdersBatchAsync(List<Order> orders, string customerId)
     {
         foreach (var order in orders)
         {
-            Context.AddToBatch("Orders", order, customerId);
+            _context.AddToBatch("Orders", order, customerId);
         }
-        return await Context.SaveBatchAsync();
-    }
-}
-```
-
-### Service Integration
-
-```csharp
-public class ECommerceService
-{
-    private readonly IUserRepository _userRepository;     // SQL
-    private readonly IOrderRepository _orderRepository;   // Cosmos DB
-
-    public ECommerceService(IUserRepository userRepository, IOrderRepository orderRepository)
-    {
-        _userRepository = userRepository;
-        _orderRepository = orderRepository;
-    }
-
-    public async Task<Order> ProcessOrderAsync(string customerId, List<OrderItem> items)
-    {
-        // Validate user exists in SQL database
-        var user = await _userRepository.Get(int.Parse(customerId));
-        if (user == null) throw new ArgumentException("User not found");
-
-        // Create order in Cosmos DB
-        var order = new Order
-        {
-            Id = Guid.NewGuid().ToString(),
-            CustomerId = customerId,
-            Items = items,
-            TotalAmount = items.Sum(i => i.TotalPrice),
-            Status = OrderStatus.Pending
-        };
-
-        return await _orderRepository.CreateOrderAsync(order, customerId);
-    }
-
-    // New: Process multiple orders efficiently using batch operations
-    public async Task<List<CosmosBatchResult>> ProcessMultipleOrdersAsync(
-        List<(string customerId, List<OrderItem> items)> orderRequests)
-    {
-        foreach (var (customerId, items) in orderRequests)
-        {
-            var order = new Order
-            {
-                Id = Guid.NewGuid().ToString(),
-                CustomerId = customerId,
-                Items = items,
-                TotalAmount = items.Sum(i => i.TotalPrice),
-                Status = OrderStatus.Pending
-            };
-            
-            _orderRepository.Context.AddToBatch("Orders", order, customerId);
-        }
-        
-        return await _orderRepository.Context.SaveBatchAsync();
+        return await _context.SaveBatchAsync();
     }
 }
 ```
@@ -242,11 +184,6 @@ For comprehensive documentation, examples, and advanced usage patterns, see:
 ```
 ???????????????????????????????????????
 ?           Application Layer         ?
-???????????????????????????????????????
-?         Repository Layer            ?
-?  ????????????????????????????????????
-?  ? SQL Repositories?Cosmos Repos   ??
-?  ????????????????????????????????????
 ???????????????????????????????????????
 ?           Context Layer             ?
 ?  ????????????????????????????????????

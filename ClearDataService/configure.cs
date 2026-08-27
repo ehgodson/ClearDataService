@@ -1,6 +1,5 @@
 using Clear.DataService.Abstractions;
 using Clear.DataService.Contexts;
-using Clear.DataService.Exceptions;
 using Clear.DataService.Factory;
 using Clear.DataService.Migrators;
 using Clear.DataService.Models;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
-using System.Reflection;
 
 namespace Clear.DataService;
 
@@ -100,84 +98,4 @@ public static class ServiceExtensions
         migrator?.CreateDatabaseAndContainers(containers).GetAwaiter().GetResult();
     }
 
-    public static IApplicationBuilder CreateCosmosDatabaseAndContainersFromRepositories(this IApplicationBuilder builder)
-    {
-        using IServiceScope scope = builder.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
-        var migrator = scope.ServiceProvider.GetService<ICosmosDbMigrator>();
-        migrator?.CreateDatabaseAndContainers(GetContainerNameFromRepositories()).GetAwaiter().GetResult();
-
-        return builder;
-    }
-
-    private static List<CosmosDbContainerInfo> GetContainerNameFromRepositories()
-    {
-        var type = typeof(ICosmosDbRepo<>);
-
-        var containers = AppDomain.CurrentDomain
-            .GetAssemblies()
-            .SelectMany(a => a.ExportedTypes)
-            .Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == type))
-            .Select(t => new
-            {
-                Type = t,
-                ContainerName = t.GetProperty("ContainerName", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string
-            })
-            .ToList();
-
-        var missingContainers = containers.Where(x => string.IsNullOrEmpty(x.ContainerName)).ToList();
-
-        if (missingContainers.Count > 0)
-        {
-            throw new ContainerNameMissingFromRepoException([.. missingContainers.Select(x => x.Type)]);
-        }
-
-        return [.. containers.Select(x => x.ContainerName!).Distinct()];
-    }
-
-    //public static IServiceCollection AddAllSqlDbRepo(this IServiceCollection services)
-    //{
-    //    var type = typeof(ISqlDbRepo<>);
-
-    //    var repoTypes = GetRepoTypes(type);
-
-    //    foreach (var repoType in repoTypes)
-    //    {
-    //        var interfaceType = repoType.GetInterfaces().FirstOrDefault(i => i != type);
-    //        if (interfaceType != null)
-    //        {
-    //            services.AddScoped(interfaceType, repoType);
-    //        }
-    //    }
-
-    //    return services;
-    //}
-
-    //public static IServiceCollection AddAllCosmosDbRepo(this IServiceCollection services)
-    //{
-    //    var type = typeof(ICosmosDbRepo<>);
-
-    //    var repoTypes = GetRepoTypes(type);
-
-    //    foreach (var repoType in repoTypes)
-    //    {
-    //        var interfaceType = repoType.GetInterfaces().FirstOrDefault(i => i != type);
-    //        if (interfaceType != null)
-    //        {
-    //            services.AddScoped(interfaceType, repoType);
-    //        }
-    //    }
-
-    //    return services;
-    //}
-
-    //private static List<Type> GetRepoTypes(Type type)
-    //{
-    //    var types = AppDomain.CurrentDomain
-    //        .GetAssemblies()
-    //        .SelectMany(a => a.ExportedTypes)
-    //        .Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == type))
-    //        .ToList();
-
-    //    return types ?? [];
-    //}
 }

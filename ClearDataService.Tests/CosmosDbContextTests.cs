@@ -1,0 +1,87 @@
+using Clear.DataService.Abstractions;
+using Clear.DataService.Contexts;
+using Clear.DataService.Entities.Cosmos;
+using Clear.DataService.Models;
+using Clear.DataService.Utils;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos.Linq;
+using Moq;
+
+namespace ClearDataService.Tests;
+
+public class CosmosDbContextTests
+{
+    private readonly Mock<CosmosClient> _client = new();
+    private readonly Mock<Container> _container = new();
+    private readonly Mock<ICosmosDbSettings> _settings = new();
+
+    public CosmosDbContextTests()
+    {
+        _settings.SetupGet(x => x.DatabaseName).Returns("database");
+        _client.Setup(x => x.GetContainer("database", "items")).Returns(_container.Object);
+    }
+
+    [Fact]
+    public async Task GetById_UsesPointRead()
+    {
+        var entity = new TestEntity { Id = "entity-1", Name = "Expected" };
+        var document = CosmosDbDocument<TestEntity>.Create(entity, "business-1");
+        var response = new Mock<ItemResponse<CosmosDbDocument<TestEntity>>>();
+        response.SetupGet(x => x.Resource).Returns(document);
+        _container.Setup(x => x.ReadItemAsync<CosmosDbDocument<TestEntity>>(
+                "entity-1",
+                It.IsAny<PartitionKey>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response.Object);
+
+        var context = new CosmosDbContext(_client.Object, _settings.Object);
+
+        var result = await context.Get<TestEntity>("items", "entity-1", "business-1");
+
+        Assert.Same(entity, result);
+        _container.Verify(x => x.ReadItemAsync<CosmosDbDocument<TestEntity>>(
+            "entity-1",
+            It.IsAny<PartitionKey>(),
+            It.IsAny<ItemRequestOptions>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void GetAsQueryable_AppliesPageSizeAndContinuationToken()
+    {
+        QueryRequestOptions? capturedOptions = null;
+        string? capturedContinuationToken = null;
+
+        _container.Setup(x => x.GetItemLinqQueryable<CosmosDbDocument<TestEntity>>(
+                false,
+                It.IsAny<string>(),
+                It.IsAny<QueryRequestOptions>(),
+                It.IsAny<CosmosLinqSerializerOptions>()))
+            .Callback<bool, string, QueryRequestOptions, CosmosLinqSerializerOptions>(
+                (_, token, options, _) =>
+                {
+                    capturedContinuationToken = token;
+                    capturedOptions = options;
+                })
+            .Returns(Array.Empty<CosmosDbDocument<TestEntity>>().AsQueryable().OrderBy(_ => 0));
+
+        var context = new CosmosDbContext(_client.Object, _settings.Object);
+
+        _ = context.GetAsQueryable<TestEntity>(
+            "items",
+            "business-1",
+            maxItemCount: 7,
+            continuationToken: "next-page");
+
+        Assert.Equal("next-page", capturedContinuationToken);
+        Assert.NotNull(capturedOptions);
+        Assert.Equal(7, capturedOptions.MaxItemCount);
+    }
+
+    public sealed class TestEntity : ICosmosDbEntity
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = string.Empty;
+    }
+}

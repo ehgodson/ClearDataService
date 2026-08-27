@@ -50,8 +50,8 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey);
-        return (await query.ToResult(cancellationToken)).Select(x => x.Data).First(x => x.Id == id);
+        var document = await GetDocument<T>(containerName, id, partitionKey, cancellationToken);
+        return document.Data;
     }
 
     public async Task<T?> Get<T>(
@@ -62,7 +62,7 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : class, ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey, filter);
+        var query = GetAsQueryable<T>(containerName, partitionKey, filter).Take(1);
         var result = await query.ToResult(cancellationToken);
         return result.FirstOrDefault()?.Data;
     }
@@ -97,8 +97,21 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey);
-        return (await query.ToResult(cancellationToken)).First(x => x.Id == id);
+        if (partitionKey is null)
+        {
+            var query = GetAsQueryable<T>(containerName)
+                .Where(document => document.Id == id)
+                .Take(1);
+            return (await query.ToResult(cancellationToken)).First();
+        }
+
+        var container = GetContainer(containerName);
+        var response = await container.ReadItemAsync<CosmosDbDocument<T>>(
+            id,
+            GetPartitionKey(partitionKey),
+            cancellationToken: cancellationToken
+        );
+        return response.Resource;
     }
 
     public async Task<CosmosDbDocument<T>?> GetDocument<T>(
@@ -109,7 +122,7 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey, filter);
+        var query = GetAsQueryable<T>(containerName, partitionKey, filter).Take(1);
         var result = await query.ToResult(cancellationToken);
         return result.FirstOrDefault();
     }
@@ -147,7 +160,13 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey, filter);
+        var query = GetAsQueryable<T>(
+            containerName,
+            partitionKey,
+            filter,
+            pageSize,
+            continuationToken
+        );
 
         // Apply sorting if provided
         var sortedQuery =
@@ -155,11 +174,7 @@ public class CosmosDbContext : ICosmosDbContext
                 ? sortBuilder.ApplyTo(query)
                 : query.OrderBy(x => 1);
 
-        var pagedResult = await sortedQuery.ToPagedResult(
-            pageSize,
-            continuationToken,
-            cancellationToken
-        );
+        var pagedResult = await sortedQuery.ToPagedResult(cancellationToken);
 
         return new PagedResult<T>
         {
@@ -182,7 +197,13 @@ public class CosmosDbContext : ICosmosDbContext
     )
         where T : ICosmosDbEntity
     {
-        var query = GetAsQueryable<T>(containerName, partitionKey, filter);
+        var query = GetAsQueryable<T>(
+            containerName,
+            partitionKey,
+            filter,
+            pageSize,
+            continuationToken
+        );
 
         // Apply sorting if provided
         var sortedQuery =
@@ -190,7 +211,7 @@ public class CosmosDbContext : ICosmosDbContext
                 ? sortBuilder.ApplyTo(query)
                 : query.OrderBy(x => 1);
 
-        return await sortedQuery.ToPagedResult(pageSize, continuationToken, cancellationToken);
+        return await sortedQuery.ToPagedResult(cancellationToken);
     }
 
     // ============================================
@@ -313,7 +334,9 @@ public class CosmosDbContext : ICosmosDbContext
     public IQueryable<CosmosDbDocument<T>> GetAsQueryable<T>(
         string containerName,
         CosmosDbPartitionKey? partitionKey = null,
-        FilterBuilder<T>? filter = null
+        FilterBuilder<T>? filter = null,
+        int? maxItemCount = null,
+        string? continuationToken = null
     )
         where T : ICosmosDbEntity
     {
@@ -323,11 +346,16 @@ public class CosmosDbContext : ICosmosDbContext
         IQueryable<CosmosDbDocument<T>> queryable = container.GetItemLinqQueryable<
             CosmosDbDocument<T>
         >(
+            continuationToken: continuationToken,
             linqSerializerOptions: new CosmosLinqSerializerOptions
             {
                 PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase,
             },
-            requestOptions: new QueryRequestOptions { PartitionKey = GetPartitionKey(partitionKey) }
+            requestOptions: new QueryRequestOptions
+            {
+                PartitionKey = GetPartitionKey(partitionKey),
+                MaxItemCount = maxItemCount
+            }
         );
 
         // IMPORTANT: Filter by entity type to ensure we only get documents of type T
@@ -620,8 +648,6 @@ public static class QueryExtensions
 
     public static async Task<PagedCosmosResult<T>> ToPagedResult<T>(
         this IQueryable<CosmosDbDocument<T>> query,
-        int maxItemCount = 100,
-        string? continuationToken = null,
         CancellationToken cancellationToken = default
     )
         where T : ICosmosDbEntity

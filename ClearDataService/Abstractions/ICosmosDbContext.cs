@@ -152,7 +152,9 @@ public interface ICosmosDbContext
     IQueryable<CosmosDbDocument<T>> GetAsQueryable<T>(
         string containerName,
         CosmosDbPartitionKey? partitionKey = null,
-        FilterBuilder<T>? filter = null
+        FilterBuilder<T>? filter = null,
+        int? maxItemCount = null,
+        string? continuationToken = null
     ) where T : ICosmosDbEntity;
 
     // ============================================

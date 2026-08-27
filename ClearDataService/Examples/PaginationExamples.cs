@@ -105,12 +105,16 @@ public class PaginationExamples
     {
         // Build a complex query using LINQ
         var query = _cosmosDbContext
-            .GetAsQueryable<Product>("products", partitionKey)
+            .GetAsQueryable<Product>(
+                "products",
+                partitionKey,
+                maxItemCount: pageSize,
+                continuationToken: continuationToken)
             .Where(doc => doc.Data.Price > 100)
             .OrderByDescending(doc => doc.Data.CreatedDate);
 
         // Convert to paged result
-        return await query.ToPagedResult(pageSize, continuationToken);
+        return await query.ToPagedResult();
     }
 
     /// <summary>

@@ -9,8 +9,7 @@
 6. [Cosmos DB Features](#cosmos-db-features)
 7. [Configuration](#configuration)
 8. [Entities and Models](#entities-and-models)
-9. [Repositories](#repositories)
-10. [Contexts](#contexts)
+9. [Contexts](#contexts)
 11. [Migrations](#migrations)
 12. [Exception Handling](#exception-handling)
 13. [Advanced Features](#advanced-features)
@@ -20,11 +19,11 @@
 
 ## Overview
 
-ClearDataService is a comprehensive data access library for .NET 9 applications that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, and provides full support for Azure Cosmos DB. It offers a unified approach to data operations across both relational and NoSQL databases.
+ClearDataService is a comprehensive data access library for .NET 10 applications that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, and provides full support for Azure Cosmos DB. It offers a unified approach to data operations across both relational and NoSQL databases.
 
 ### Key Features
 - **Dual Database Support**: SQL Server (via Entity Framework + Dapper) and Azure Cosmos DB
-- **Repository Pattern**: Built-in repository implementations for both database types
+- **Direct Context APIs**: Explicit SQL and Cosmos DB access without repository wrappers
 - **Dependency Injection**: Full .NET Core DI container integration
 - **Entity Framework Integration**: Leverage EF Core's ORM capabilities
 - **Raw SQL Support**: Execute custom SQL queries using Dapper
@@ -40,17 +39,17 @@ ClearDataService is a comprehensive data access library for .NET 9 applications 
 
 ### Package Manager Console
 ```powershell
-Install-Package ClearDataService -Version 3.0.1
+Install-Package ClearDataService -Version 6.0.0
 ```
 
 ### .NET CLI
 ```bash
-dotnet add package ClearDataService --version 3.0.1
+dotnet add package ClearDataService --version 6.0.0
 ```
 
 ### PackageReference
 ```xml
-<PackageReference Include="ClearDataService" Version="3.0.1" />
+<PackageReference Include="ClearDataService" Version="6.0.0" />
 ```
 
 ## Quick Start
@@ -99,11 +98,6 @@ ClearDataService follows a layered architecture pattern:
 ```
 ???????????????????????????????????????
 ?           Application Layer         ?
-???????????????????????????????????????
-?         Repository Layer            ?
-?  ????????????????????????????????????
-?  ? SQL Repositories?Cosmos Repos   ??
-?  ????????????????????????????????????
 ???????????????????????????????????????
 ?           Context Layer             ?
 ?  ????????????????????????????????????
@@ -428,63 +422,6 @@ public class SoftDeleteCosmosUser : BaseCosmosDbAuditDeleteEntity
 }
 ```
 
-## Repositories
-
-### SQL Database Repositories
-
-#### Basic Repository
-```csharp
-public interface IUserRepository : ISqlDbRepo<User>
-{
-    Task<User?> GetByEmailAsync(string email);
-    Task<List<User>> GetActiveUsersAsync();
-}
-
-public class UserRepository : BaseSqlDbRepo<User>, IUserRepository
-{
-    public UserRepository(ISqlDbContext context) : base(context) { }
-
-    public async Task<User?> GetByEmailAsync(string email)
-    {
-        return await Get(u => u.Email == email);
-    }
-
-    public async Task<List<User>> GetActiveUsersAsync()
-    {
-        return await Find(u => u.IsActive);
-    }
-}
-```
-
-#### Repository Registration
-```csharp
-// Manual registration
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-
-// Auto-registration (if using the extension methods)
-builder.Services.AddAllSqlDbRepo(Assembly.GetExecutingAssembly());
-```
-
-### Cosmos DB Repositories
-
-#### Basic Cosmos Repository
-```csharp
-public interface ICosmosUserRepository : ICosmosDbRepo<CosmosUser>
-{
-    Task<List<CosmosUser>> GetUsersByDomainAsync(string domain, string partitionKey);
-}
-
-public class CosmosUserRepository : BaseCosmosDbRepo<CosmosUser>, ICosmosUserRepository
-{
-    public CosmosUserRepository(ICosmosDbContext context) : base(context, "Users") { }
-
-    public async Task<List<CosmosUser>> GetUsersByDomainAsync(string domain, string partitionKey)
-    {
-        return await Get(u => u.Email.EndsWith($"@{domain}"), partitionKey);
-    }
-}
-```
-
 ## Contexts
 
 ### SQL Database Context Usage
@@ -674,7 +611,6 @@ app.CreateCosmosDatabaseAndContainers(
 ```csharp
 // Cosmos DB specific exceptions
 public class ContainerNameEmptyException : BaseException
-public class ContainerNameMissingFromRepoException : BaseException
 public class PartitionKeyNullException : BaseException
 public class CosmosJsonSerializerNullException : BaseException
 ```
@@ -961,43 +897,14 @@ public class Product : BaseSqlDbAuditEntity<int, string>
     public bool IsActive { get; set; } = true;
 }
 
-// Repository interface
-public interface IProductRepository : ISqlDbRepo<Product>
-{
-    Task<List<Product>> GetByCategoryAsync(int categoryId);
-    Task<List<Product>> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice);
-    Task<Product?> GetByNameAsync(string name);
-}
-
-// Repository implementation
-public class ProductRepository : BaseSqlDbRepo<Product>, IProductRepository
-{
-    public ProductRepository(ISqlDbContext context) : base(context) { }
-
-    public async Task<List<Product>> GetByCategoryAsync(int categoryId)
-    {
-        return await Find(p => p.CategoryId == categoryId && p.IsActive);
-    }
-
-    public async Task<List<Product>> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice)
-    {
-        return await Find(p => p.Price >= minPrice && p.Price <= maxPrice && p.IsActive);
-    }
-
-    public async Task<Product?> GetByNameAsync(string name)
-    {
-        return await Get(p => p.Name == name);
-    }
-}
-
 // Service usage
 public class ProductService
 {
-    private readonly IProductRepository _repository;
+    private readonly ISqlDbContext _context;
 
-    public ProductService(IProductRepository repository)
+    public ProductService(ISqlDbContext context)
     {
-        _repository = repository;
+        _context = context;
     }
 
     public async Task<Product> CreateProductAsync(string name, string description, decimal price, int categoryId, string userId)
@@ -1015,8 +922,7 @@ public class ProductService
             }
         };
 
-        await _repository.Create(product);
-        return product;
+        return await _context.Save(product);
     }
 }
 ```
@@ -1052,43 +958,14 @@ public enum OrderStatus
     Cancelled
 }
 
-// Repository interface
-public interface IOrderRepository : ICosmosDbRepo<Order>
-{
-    Task<List<Order>> GetByCustomerAsync(string customerId);
-    Task<List<Order>> GetByStatusAsync(OrderStatus status, string customerId);
-    Task<Order?> GetByOrderNumberAsync(string orderNumber, string customerId);
-}
-
-// Repository implementation
-public class OrderRepository : BaseCosmosDbRepo<Order>, IOrderRepository
-{
-    public OrderRepository(ICosmosDbContext context) : base(context, "Orders") { }
-
-    public async Task<List<Order>> GetByCustomerAsync(string customerId)
-    {
-        return await Get(customerId); // customerId is the partition key
-    }
-
-    public async Task<List<Order>> GetByStatusAsync(OrderStatus status, string customerId)
-    {
-        return await Get(o => o.Status == status, customerId);
-    }
-
-    public async Task<Order?> GetByOrderNumberAsync(string orderNumber, string customerId)
-    {
-        return await Get(o => o.Id == orderNumber, customerId);
-    }
-}
-
 // Service usage
 public class OrderService
 {
-    private readonly IOrderRepository _repository;
+    private readonly ICosmosDbContext _context;
 
-    public OrderService(IOrderRepository repository)
+    public OrderService(ICosmosDbContext context)
     {
-        _repository = repository;
+        _context = context;
     }
 
     public async Task<Order> CreateOrderAsync(string customerId, List<OrderItem> items, string userId)
@@ -1108,7 +985,7 @@ public class OrderService
             }
         };
 
-        return await _repository.Create(order, customerId);
+        return (await _context.Save("Orders", order, customerId)).Data;
     }
 }
 ```
@@ -1119,17 +996,17 @@ public class OrderService
 // Application using both SQL and Cosmos DB
 public class ECommerceService
 {
-    private readonly IProductRepository _productRepository; // SQL
-    private readonly IOrderRepository _orderRepository;     // Cosmos DB
+    private readonly ISqlDbContext _sqlContext;
+    private readonly ICosmosDbContext _cosmosContext;
     private readonly ILogger<ECommerceService> _logger;
 
     public ECommerceService(
-        IProductRepository productRepository,
-        IOrderRepository orderRepository,
+        ISqlDbContext sqlContext,
+        ICosmosDbContext cosmosContext,
         ILogger<ECommerceService> logger)
     {
-        _productRepository = productRepository;
-        _orderRepository = orderRepository;
+        _sqlContext = sqlContext;
+        _cosmosContext = cosmosContext;
         _logger = logger;
     }
 
@@ -1141,7 +1018,7 @@ public class ECommerceService
             var orderItems = new List<OrderItem>();
             foreach (var request in itemRequests)
             {
-                var product = await _productRepository.Get(request.ProductId);
+                var product = await _sqlContext.Get<Product>(request.ProductId);
                 if (product == null)
                 {
                     throw new ArgumentException($"Product {request.ProductId} not found");
@@ -1157,7 +1034,7 @@ public class ECommerceService
             }
 
             // Create order in Cosmos DB
-            var order = await _orderRepository.Create(new Order
+            var order = (await _cosmosContext.Save("Orders", new Order
             {
                 Id = Guid.NewGuid().ToString(),
                 CustomerId = customerId,
@@ -1170,7 +1047,7 @@ public class ECommerceService
                     Date = DateTime.UtcNow,
                     UserId = userId
                 }
-            }, customerId);
+            }, customerId)).Data;
 
             _logger.LogInformation("Order {OrderId} created for customer {CustomerId}", order.Id, customerId);
             return order;

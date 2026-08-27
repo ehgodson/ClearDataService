@@ -247,36 +247,31 @@ public class TenantSettings : BaseCosmosDbEntity
 }
 ```
 
-### Repository Implementation
+### Application Service with Direct Context Access
 
 ```csharp
-public interface ITenantDocumentRepository : ICosmosDbRepo<TenantDocument>
+public class TenantDocumentService
 {
-    Task<List<TenantDocument>> GetTenantDocumentsAsync(string tenantId);
-    Task<List<TenantDocument>> GetFolderDocumentsAsync(string tenantId, string folderId);
-    Task<TenantDocument> CreateDocumentAsync(TenantDocument document, string tenantId, string folderId);
-}
+    private readonly ICosmosDbContext _context;
 
-public class TenantDocumentRepository : BaseCosmosDbRepo<TenantDocument>, ITenantDocumentRepository
-{
-    public TenantDocumentRepository(ICosmosDbContext context) : base(context, "Documents") { }
+    public TenantDocumentService(ICosmosDbContext context) => _context = context;
 
     public async Task<List<TenantDocument>> GetTenantDocumentsAsync(string tenantId)
     {
         var partitionKey = HierarchicalPartitionKey.Create(tenantId);
-        return await Get(partitionKey);
+        return await _context.GetList<TenantDocument>("Documents", partitionKey);
     }
 
     public async Task<List<TenantDocument>> GetFolderDocumentsAsync(string tenantId, string folderId)
     {
   var partitionKey = HierarchicalPartitionKey.Create(tenantId, folderId);
-        return await Get(partitionKey);
+        return await _context.GetList<TenantDocument>("Documents", partitionKey);
     }
 
     public async Task<TenantDocument> CreateDocumentAsync(TenantDocument document, string tenantId, string folderId)
     {
         var partitionKey = HierarchicalPartitionKey.Create(tenantId, folderId);
-        return await Create(document, partitionKey);
+        return (await _context.Save("Documents", document, partitionKey)).Data;
     }
 }
 ```
