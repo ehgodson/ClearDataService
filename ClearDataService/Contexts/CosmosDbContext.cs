@@ -380,10 +380,20 @@ public class CosmosDbContext : ICosmosDbContext
         CosmosDbPartitionKey partitionKey
     )
         where T : ICosmosDbEntity
+        => await Save(containerName, entity, partitionKey, CancellationToken.None);
+
+    public async Task<CosmosDbDocument<T>> Save<T>(
+        string containerName,
+        T entity,
+        CosmosDbPartitionKey partitionKey,
+        CancellationToken cancellationToken
+    )
+        where T : ICosmosDbEntity
     {
         var container = GetContainer(containerName);
         var doc = CosmosDbDocument<T>.Create(entity, partitionKey.ToString());
-        var response = await container.CreateItemAsync(doc, partitionKey.ToCosmosPartitionKey());
+        var response = await container.CreateItemAsync(
+            doc, partitionKey.ToCosmosPartitionKey(), cancellationToken: cancellationToken);
         return response.Resource;
     }
 
@@ -400,6 +410,28 @@ public class CosmosDbContext : ICosmosDbContext
         return response.Resource;
     }
 
+    public async Task<CosmosDbDocument<T>> ReplaceIfMatch<T>(
+        string containerName,
+        T entity,
+        CosmosDbPartitionKey partitionKey,
+        string etag,
+        CancellationToken cancellationToken = default
+    )
+        where T : ICosmosDbEntity
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+
+        var container = GetContainer(containerName);
+        var doc = CosmosDbDocument<T>.Create(entity, partitionKey.ToString());
+        var response = await container.ReplaceItemAsync(
+            doc,
+            entity.Id,
+            partitionKey.ToCosmosPartitionKey(),
+            new ItemRequestOptions { IfMatchEtag = etag },
+            cancellationToken);
+        return response.Resource;
+    }
+
     public async Task Delete<T>(
         string containerName,
         string id,
@@ -409,6 +441,25 @@ public class CosmosDbContext : ICosmosDbContext
     {
         var container = GetContainer(containerName);
         await container.DeleteItemAsync<T>(id, GetPartitionKey(partitionKey));
+    }
+
+    public async Task DeleteIfMatch<T>(
+        string containerName,
+        string id,
+        CosmosDbPartitionKey partitionKey,
+        string etag,
+        CancellationToken cancellationToken = default
+    )
+        where T : ICosmosDbEntity
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+
+        var container = GetContainer(containerName);
+        await container.DeleteItemAsync<CosmosDbDocument<T>>(
+            id,
+            partitionKey.ToCosmosPartitionKey(),
+            new ItemRequestOptions { IfMatchEtag = etag },
+            cancellationToken);
     }
 
     public async Task DeleteAll(CosmosDbContainerInfo containerInfo, CosmosDbPartitionKey partitionKey)

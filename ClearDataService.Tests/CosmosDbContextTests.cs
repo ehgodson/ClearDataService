@@ -48,6 +48,54 @@ public class CosmosDbContextTests
     }
 
     [Fact]
+    public async Task ReplaceIfMatch_SendsEtagAndPartitionKey()
+    {
+        var entity = new TestEntity { Id = "entity-1", Name = "Updated" };
+        var responseDocument = CosmosDbDocument<TestEntity>.Create(entity, "business-1");
+        var response = new Mock<ItemResponse<CosmosDbDocument<TestEntity>>>();
+        response.SetupGet(x => x.Resource).Returns(responseDocument);
+        ItemRequestOptions? capturedOptions = null;
+        _container.Setup(x => x.ReplaceItemAsync(
+                It.IsAny<CosmosDbDocument<TestEntity>>(),
+                "entity-1",
+                It.IsAny<PartitionKey>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<CosmosDbDocument<TestEntity>, string, PartitionKey?, ItemRequestOptions, CancellationToken>(
+                (_, _, _, options, _) => capturedOptions = options)
+            .ReturnsAsync(response.Object);
+
+        var context = new CosmosDbContext(_client.Object, _settings.Object);
+
+        var result = await context.ReplaceIfMatch(
+            "items", entity, "business-1", "etag-1", CancellationToken.None);
+
+        Assert.Same(responseDocument, result);
+        Assert.Equal("etag-1", capturedOptions?.IfMatchEtag);
+    }
+
+    [Fact]
+    public async Task DeleteIfMatch_SendsEtagAndPartitionKey()
+    {
+        ItemRequestOptions? capturedOptions = null;
+        _container.Setup(x => x.DeleteItemAsync<CosmosDbDocument<TestEntity>>(
+                "entity-1",
+                It.IsAny<PartitionKey>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, PartitionKey, ItemRequestOptions, CancellationToken>(
+                (_, _, options, _) => capturedOptions = options)
+            .ReturnsAsync(Mock.Of<ItemResponse<CosmosDbDocument<TestEntity>>>());
+
+        var context = new CosmosDbContext(_client.Object, _settings.Object);
+
+        await context.DeleteIfMatch<TestEntity>(
+            "items", "entity-1", "business-1", "etag-1", CancellationToken.None);
+
+        Assert.Equal("etag-1", capturedOptions?.IfMatchEtag);
+    }
+
+    [Fact]
     public void GetAsQueryable_AppliesPageSizeAndContinuationToken()
     {
         QueryRequestOptions? capturedOptions = null;

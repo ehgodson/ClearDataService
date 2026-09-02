@@ -172,6 +172,16 @@ public interface ICosmosDbContext
     ) where T : ICosmosDbEntity;
 
     /// <summary>
+    /// Saves a new entity with cancellation support.
+    /// </summary>
+    Task<CosmosDbDocument<T>> Save<T>(
+        string containerName,
+        T entity,
+        CosmosDbPartitionKey partitionKey,
+        CancellationToken cancellationToken
+    ) where T : ICosmosDbEntity;
+
+    /// <summary>
     /// Upserts an entity (insert or update).
     /// Supports both string and hierarchical partition keys via implicit conversion.
     /// </summary>
@@ -182,6 +192,17 @@ public interface ICosmosDbContext
     ) where T : ICosmosDbEntity;
 
     /// <summary>
+    /// Replaces an existing entity only when its current ETag matches.
+    /// </summary>
+    Task<CosmosDbDocument<T>> ReplaceIfMatch<T>(
+        string containerName,
+        T entity,
+        CosmosDbPartitionKey partitionKey,
+        string etag,
+        CancellationToken cancellationToken = default
+    ) where T : ICosmosDbEntity;
+
+    /// <summary>
     /// Deletes an entity by ID.
     /// Supports both string and hierarchical partition keys via implicit conversion.
     /// </summary>
@@ -189,6 +210,17 @@ public interface ICosmosDbContext
         string containerName,
         string id,
         CosmosDbPartitionKey? partitionKey = null
+    ) where T : ICosmosDbEntity;
+
+    /// <summary>
+    /// Deletes an entity only when its current ETag matches.
+    /// </summary>
+    Task DeleteIfMatch<T>(
+        string containerName,
+        string id,
+        CosmosDbPartitionKey partitionKey,
+        string etag,
+        CancellationToken cancellationToken = default
     ) where T : ICosmosDbEntity;
 
     // ============================================
