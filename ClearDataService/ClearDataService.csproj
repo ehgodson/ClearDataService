@@ -5,7 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>Clear.DataService</RootNamespace>
 
-		<Version>6.0.1</Version>
+		<Version>6.0.2</Version>
 		<ProduceReferenceAssembly>True</ProduceReferenceAssembly>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>

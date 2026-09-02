@@ -1,3 +1,4 @@
+using Clear.DataService;
 using Clear.DataService.Abstractions;
 using Clear.DataService.Contexts;
 using Clear.DataService.Entities.Cosmos;
@@ -5,6 +6,7 @@ using Clear.DataService.Models;
 using Clear.DataService.Utils;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace ClearDataService.Tests;
@@ -131,5 +133,22 @@ public class CosmosDbContextTests
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; } = string.Empty;
+    }
+
+    [Fact]
+    public void AddCosmosDbContext_WithConnection_RegistersDatabaseSettings()
+    {
+        var services = new ServiceCollection();
+        var key = Convert.ToBase64String("secret-key"u8.ToArray());
+        var connection = new CosmosConnection("https://cosmos.test", key);
+
+        services.AddCosmosDbContext(connection, "store-db");
+
+        using var provider = services.BuildServiceProvider();
+        var settings = provider.GetRequiredService<ICosmosDbSettings>();
+        Assert.Equal("https://cosmos.test", settings.EndpointUri);
+        Assert.Equal(key, settings.PrimaryKey);
+        Assert.Equal("store-db", settings.DatabaseName);
+        Assert.IsType<CosmosDbContext>(provider.GetRequiredService<ICosmosDbContext>());
     }
 }

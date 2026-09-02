@@ -44,6 +44,19 @@ public static class ServiceExtensions
         return services;
     }
 
+    public static IServiceCollection AddCosmosDbContext(
+        this IServiceCollection services,
+        CosmosConnection connection,
+        string databaseName,
+        JsonSerializerSettings? jsonSerializerSettings = null)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseName);
+
+        var settings = CosmosDbSettings.Create(connection.Endpoint, connection.Key, databaseName);
+        return services.AddCosmosDbContext(settings, jsonSerializerSettings);
+    }
+
     public static IServiceCollection AddCosmosDbContext(this IServiceCollection services,
         IConfiguration configuration, string appSettingsKey)
     {
