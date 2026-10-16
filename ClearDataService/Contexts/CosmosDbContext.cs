@@ -353,7 +353,9 @@ public class CosmosDbContext : ICosmosDbContext
             },
             requestOptions: new QueryRequestOptions
             {
-                PartitionKey = GetPartitionKey(partitionKey),
+                // An omitted query key searches all partitions. PartitionKey.None
+                // explicitly targets the undefined-key partition instead.
+                PartitionKey = partitionKey?.ToCosmosPartitionKey(),
                 MaxItemCount = maxItemCount
             }
         );

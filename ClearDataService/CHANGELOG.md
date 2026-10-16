@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.0.3
+
+- Fix cross-partition LINQ queries: an omitted partition key now leaves the Cosmos SDK query option unset instead of targeting `PartitionKey.None` (the undefined-key partition).
+- Cover request options for filtered reads, ID discovery without a key, lists, LINQ pagination, and SQL pagination. Explicit single-level and hierarchical keys remain scoped, and point-read/write behavior is unchanged.
+
 ## 6.0.0
 
 - Remove the `ICosmosDbRepo<T>`, `BaseCosmosDbRepo<T>`, `ISqlDbRepo<T>`, and `BaseSqlDbRepo<T>` repository APIs.
