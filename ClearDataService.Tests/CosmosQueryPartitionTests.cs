@@ -121,6 +121,45 @@ public sealed class CosmosQueryPartitionTests
         Assert.Equal(7, captured.MaxItemCount);
     }
 
+    [Theory]
+    [InlineData(1, false, false)]
+    [InlineData(2, false, true)]
+    [InlineData(2, true, true)]
+    public async Task ProjectedPagePreservesPartitionAndContinuation(int levels, bool empty, bool hasContinuation)
+    {
+        var partition = Key(levels)!.ToCosmosPartitionKey();
+        var query = new QueryDefinition("SELECT c.data.email AS email FROM c WHERE c.id = @id")
+            .WithParameter("@id", "user");
+        using var cancellation = new CancellationTokenSource();
+        string? inputToken = levels == 1 ? null : "resume";
+        string? outputToken = hasContinuation ? "next" : null;
+        EmailProjection[] rows = empty ? [] : [new("account@example.com")];
+        var response = new Mock<FeedResponse<EmailProjection>>();
+        response.Setup(r => r.GetEnumerator()).Returns(() => rows.AsEnumerable().GetEnumerator());
+        response.SetupGet(r => r.Count).Returns(rows.Length);
+        response.SetupGet(r => r.ContinuationToken).Returns(outputToken!);
+        response.SetupGet(r => r.RequestCharge).Returns(2.75);
+        var iterator = new Mock<FeedIterator<EmailProjection>>();
+        iterator.Setup(i => i.ReadNextAsync(cancellation.Token)).ReturnsAsync(response.Object);
+        var container = new Mock<Container>(MockBehavior.Strict);
+        container.Setup(c => c.GetItemQueryIterator<EmailProjection>(query, inputToken,
+                It.Is<QueryRequestOptions>(options => options.PartitionKey == partition && options.MaxItemCount == 7)))
+            .Returns(iterator.Object);
+
+        ICosmosDbContext context = Context(container);
+        var page = await context.ReadProjectedPageAsync<EmailProjection>("accounts", query, partition,
+            pageSize: 7, continuationToken: inputToken, cancellationToken: cancellation.Token);
+
+        Assert.Equal(rows, page.Items.ToArray());
+        Assert.Equal(rows.Length, page.Count);
+        Assert.Equal(outputToken, page.ContinuationToken);
+        Assert.Equal(hasContinuation, page.HasMoreResults);
+        Assert.Equal(2.75, page.RequestCharge);
+        iterator.Verify(i => i.ReadNextAsync(cancellation.Token), Times.Once);
+    }
+
+    public sealed record EmailProjection(string Email);
+
     private static CosmosDbContext Context(Mock<Container> container)
     {
         var client = new Mock<CosmosClient>();
