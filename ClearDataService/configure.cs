@@ -39,6 +39,7 @@ public static class ServiceExtensions
 
         services.AddSingleton(CosmosDbClientFactory.CreateClient(settings, CreateCosmosClientOptions(serializer)));
         services.AddScoped<ICosmosDbContext, CosmosDbContext>();
+        services.AddScoped<ICosmosProjectionReader, CosmosProjectionReader>();
         services.AddScoped<ICosmosDbMigrator, CosmosDbMigrator>();
 
         return services;
