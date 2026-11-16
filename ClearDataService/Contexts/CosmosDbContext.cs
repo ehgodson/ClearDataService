@@ -1,4 +1,4 @@
-﻿using Clear.DataService.Abstractions;
+using Clear.DataService.Abstractions;
 using Clear.DataService.Entities.Cosmos;
 using Clear.DataService.Exceptions;
 using Clear.DataService.Models;
@@ -217,6 +217,23 @@ public class CosmosDbContext : ICosmosDbContext
     // ============================================
     // SQL-BASED PAGINATION - Consolidated
     // ============================================
+
+    public async Task<PagedResult<T>> ReadProjectedPageAsync<T>(string containerName, QueryDefinition query, PartitionKey partitionKey,
+        int pageSize, string? continuationToken = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        using var iterator = GetContainer(containerName).GetItemQueryIterator<T>(
+            query, continuationToken, new QueryRequestOptions { PartitionKey = partitionKey, MaxItemCount = pageSize });
+        var response = await iterator.ReadNextAsync(cancellationToken);
+        return new PagedResult<T>
+        {
+            Items = response.ToList(),
+            Count = response.Count,
+            ContinuationToken = response.ContinuationToken,
+            HasMoreResults = !string.IsNullOrEmpty(response.ContinuationToken),
+            RequestCharge = response.RequestCharge
+        };
+    }
 
     public async Task<PagedResult<T>> GetPagedListWithSql<T>(
         string containerName,
