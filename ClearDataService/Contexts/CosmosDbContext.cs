@@ -218,7 +218,7 @@ public class CosmosDbContext : ICosmosDbContext
     // SQL-BASED PAGINATION - Consolidated
     // ============================================
 
-    public async Task<PagedResult<T>> ReadAsync<T>(string containerName, QueryDefinition query, PartitionKey partitionKey,
+    public async Task<PagedResult<T>> ReadProjectedPageAsync<T>(string containerName, QueryDefinition query, PartitionKey partitionKey,
         int pageSize, string? continuationToken = null, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);

@@ -1,12 +1,17 @@
-﻿using Clear.DataService.Abstractions;
+using Clear.DataService.Abstractions;
 using Clear.DataService.Entities.Cosmos;
 using Clear.DataService.Models;
 using Clear.DataService.Utils;
+using Microsoft.Azure.Cosmos;
 
 namespace Clear.DataService.Abstractions;
 
-public interface ICosmosDbContext : ICosmosProjectionReader
+public interface ICosmosDbContext
 {
+    /// <summary>Reads one page of a projected Cosmos SQL query in an explicit partition.</summary>
+    Task<PagedResult<T>> ReadProjectedPageAsync<T>(string containerName, QueryDefinition query, PartitionKey partitionKey,
+        int pageSize, string? continuationToken = null, CancellationToken cancellationToken = default);
+
     // ============================================
     // GET OPERATIONS - ID-based and filter-based separate
     // ============================================
