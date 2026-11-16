@@ -8,7 +8,7 @@ using Microsoft.Azure.Cosmos.Linq;
 
 namespace Clear.DataService.Contexts;
 
-public class CosmosDbContext : ICosmosDbContext, ICosmosProjectionReader
+public class CosmosDbContext : ICosmosDbContext
 {
     private readonly CosmosClient _client;
     private readonly ICosmosDbSettings _settings;

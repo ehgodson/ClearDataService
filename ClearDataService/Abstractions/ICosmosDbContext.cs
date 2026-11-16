@@ -5,7 +5,7 @@ using Clear.DataService.Utils;
 
 namespace Clear.DataService.Abstractions;
 
-public interface ICosmosDbContext
+public interface ICosmosDbContext : ICosmosProjectionReader
 {
     // ============================================
     // GET OPERATIONS - ID-based and filter-based separate
