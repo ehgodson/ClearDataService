@@ -4,9 +4,9 @@
 
 [![NuGet version](https://badge.fury.io/nu/Clear.DataService.svg)](https://badge.fury.io/nu/Clear.DataService)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-11.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/11.0)
 
-A comprehensive data access library for .NET 10 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. Clear.DataService provides a unified approach to data operations across both relational and NoSQL databases.
+A comprehensive data access library for .NET 11 that combines the power of Entity Framework Core with the flexibility of Dapper for SQL Server operations, plus complete Azure Cosmos DB support. Clear.DataService provides a unified approach to data operations across both relational and NoSQL databases.
 
 ## ? Features
 
